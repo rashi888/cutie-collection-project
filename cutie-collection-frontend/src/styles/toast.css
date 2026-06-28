@@ -1,0 +1,34 @@
+.Toastify__toast {
+  background: #fff5f8;
+  color: #c2185b;
+ .Toastify__toast--error {  border: 2px solid #f8bbd0;
+  background: #fff0f5;
+  border-color: #e91e63;
+}
+
+.Toastify__toast--warning {
+  background: #fff8fa;
+  border-color: #ff80ab;
+}
+
+.Toastify__progress-bar {
+  background: linear-gradient(
+    90deg,
+    #f06292,
+    #e91e63
+  );
+}
+
+.Toastify__close-button {
+  color: #c2185b;
+}
+  border-radius: 18px;
+  font-family: "Poppins", sans-serif;
+  box-shadow: 0 8px 25px rgba(233, 30, 99, 0.15);
+}
+
+.Toastify__toast--success {
+  background: #fff0f5;
+  border-color: #f48fb1;
+}
+
