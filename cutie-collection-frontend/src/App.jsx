@@ -5,11 +5,14 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Home from "./pages/Home";
+
 import CategoryPage from "./pages/CategoryPage";
 import ManageCategories from "./pages/ManageCategories";
 
 import "react-toastify/dist/ReactToastify.css";
 import "./styles/toast.css";
+import ProductPage from "./pages/ProductPage";
+import ManageProducts from "./pages/ManageProducts";
 
 function App() {
   return (
@@ -40,6 +43,24 @@ function App() {
           element={
             <ProtectedRoute>
               <ManageCategories />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/products"
+          element={
+            <ProtectedRoute>
+              <ProductPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/manage-products"
+          element={
+            <ProtectedRoute>
+              <ManageProducts />
             </ProtectedRoute>
           }
         />

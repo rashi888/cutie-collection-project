@@ -5,3 +5,392 @@ user1@gmail.com
 admin
 admin@gmail.com
 123456789
+
+*********************POSTMAN API TESTING***********************************
+
+
+Let's create a **complete Postman testing flow** for your project so far:
+
+# ✅ Module 1: Authentication
+
+## 1. Signup
+
+### POST
+
+```http
+http://localhost:8080/api/auth/signup
+```
+
+### Body
+
+```json
+{
+  "name": "Rashi",
+  "email": "rashi@gmail.com",
+  "password": "Password@123"
+}
+```
+
+### Expected
+
+```json
+{
+  "message": "User registered successfully"
+}
+```
+
+***
+
+## 2. Login
+
+### POST
+
+```http
+http://localhost:8080/api/auth/login
+```
+
+### Body
+
+```json
+{
+  "email": "rashi@gmail.com",
+  "password": "Password@123"
+}
+```
+
+### Expected
+
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiJ9..."
+}
+```
+
+📌 Copy this token.
+
+***
+
+# ✅ Authorization Header
+
+For all protected APIs:
+
+### Headers
+
+```text
+Authorization : Bearer <paste_token_here>
+```
+
+Example:
+
+```text
+Authorization : Bearer eyJhbGciOiJIUzI1NiJ9...
+```
+
+***
+
+# ✅ Module 2: Categories
+
+## 3. Create Category
+
+### POST
+
+```http
+http://localhost:8080/api/categories
+```
+
+### Body
+
+```json
+{
+  "name": "Soft Toys",
+  "description": "Cute plush toys"
+}
+```
+
+***
+
+## 4. Create Category
+
+### POST
+
+```http
+http://localhost:8080/api/categories
+```
+
+### Body
+
+```json
+{
+  "name": "Stationery",
+  "description": "Cute notebooks and pens"
+}
+```
+
+***
+
+## 5. Get All Categories
+
+### GET
+
+```http
+http://localhost:8080/api/categories
+```
+
+Expected:
+
+```json
+[
+  {
+    "id": 1,
+    "name": "Soft Toys"
+  },
+  {
+    "id": 2,
+    "name": "Stationery"
+  }
+]
+```
+
+***
+
+## 6. Get Category By Id
+
+### GET
+
+```http
+http://localhost:8080/api/categories/1
+```
+
+***
+
+## 7. Update Category
+
+### PUT
+
+```http
+http://localhost:8080/api/categories/1
+```
+
+### Body
+
+```json
+{
+  "name": "Premium Soft Toys",
+  "description": "Updated category"
+}
+```
+
+***
+
+## 8. Delete Category
+
+### DELETE
+
+```http
+http://localhost:8080/api/categories/2
+```
+
+***
+
+# ✅ Verify Category Data
+
+```sql
+SELECT * FROM categories;
+```
+
+***
+
+# ✅ Module 3: Products
+
+Before creating products, ensure category id exists.
+
+Example:
+
+```text
+1 = Premium Soft Toys
+```
+
+***
+
+## 9. Create Product
+
+### POST
+
+```http
+http://localhost:8080/api/products
+```
+
+### Body
+
+```json
+{
+  "name": "Cute Teddy Bear",
+  "description": "Soft and fluffy teddy bear",
+  "price": 499.99,
+  "stockQuantity": 50,
+  "imageUrl": "https://example.com/teddy.jpg",
+  "categoryId": 1
+}
+```
+
+***
+
+## 10. Create Another Product
+
+### POST
+
+```http
+http://localhost:8080/api/products
+```
+
+### Body
+
+```json
+{
+  "name": "Panda Plush",
+  "description": "Cute panda soft toy",
+  "price": 699.99,
+  "stockQuantity": 25,
+  "imageUrl": "https://example.com/panda.jpg",
+  "categoryId": 1
+}
+```
+
+***
+
+## 11. Get All Products
+
+### GET
+
+```http
+http://localhost:8080/api/products
+```
+
+***
+
+## 12. Get Product By Id
+
+### GET
+
+```http
+http://localhost:8080/api/products/1
+```
+
+***
+
+## 13. Update Product
+
+### PUT
+
+```http
+http://localhost:8080/api/products/1
+```
+
+### Body
+
+```json
+{
+  "name": "Premium Teddy Bear",
+  "description": "Updated teddy bear",
+  "price": 599.99,
+  "stockQuantity": 75,
+  "imageUrl": "https://example.com/premium-teddy.jpg",
+  "categoryId": 1
+}
+```
+
+***
+
+## 14. Get Products By Category
+
+### GET
+
+```http
+http://localhost:8080/api/products/category/1
+```
+
+Expected:
+
+```json
+[
+  {
+    "id": 1,
+    "name": "Premium Teddy Bear"
+  },
+  {
+    "id": 2,
+    "name": "Panda Plush"
+  }
+]
+```
+
+***
+
+## 15. Delete Product
+
+### DELETE
+
+```http
+http://localhost:8080/api/products/2
+```
+
+***
+
+# ✅ Verify Product Data
+
+```sql
+SELECT * FROM products;
+```
+
+***
+
+# ✅ Verify Product ↔ Category Relationship
+
+```sql
+SELECT
+    p.id,
+    p.name,
+    p.price,
+    c.name AS category_name
+FROM products p
+JOIN categories c
+ON p.category_id = c.id;
+```
+
+Expected:
+
+```text
+1 | Premium Teddy Bear | 599.99 | Premium Soft Toys
+```
+
+***
+
+# 🎯 Complete Testing Order
+
+```text
+1. Signup
+2. Login
+3. Copy JWT Token
+
+4. Create Category
+5. Create Category
+6. Get All Categories
+
+7. Create Product
+8. Create Product
+9. Get All Products
+10. Get Product By Id
+11. Update Product
+12. Get Products By Category
+13. Delete Product
+
+14. Verify in PostgreSQL
+```
+
+If all these pass successfully, then:
+
+✅ Authentication Module Complete  
+✅ Category Module Complete  
+✅ Product Module Complete
+
+and you're ready to start **Module 4: Cart Management** 🛒🚀.
