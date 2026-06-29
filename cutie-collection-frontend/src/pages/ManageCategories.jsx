@@ -79,7 +79,7 @@ export default function ManageCategories() {
 
   const handleDelete = async (id) => {
     try {
-      await CategoryService.delete(id);
+      await CategoryService.remove(id);
       toast.success("Category deleted! 🗑️");
       setDeleteConfirmId(null);
       fetchCategories();
