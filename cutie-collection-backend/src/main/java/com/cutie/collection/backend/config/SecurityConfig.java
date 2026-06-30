@@ -19,15 +19,14 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Configuration
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public SecurityConfig(
-            JwtAuthenticationFilter jwtAuthenticationFilter) {
+	public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
 
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-    }
+		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+	}
 
-    @Bean
+	@Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http) throws Exception {
 
@@ -50,14 +49,18 @@ public class SecurityConfig {
                         .requestMatchers("/api/user/**")
                         .authenticated()
 
-                        .requestMatchers("/api/cart/**")
-                        .authenticated()
+                        .requestMatchers("/api/auth/**").permitAll()
 
                         .requestMatchers("/api/wishlist/**")
                         .authenticated()
 
                         .requestMatchers("/api/order/**")
                         .authenticated()
+                        
+
+                        .requestMatchers("/api/cart/**")
+                        .permitAll()
+
                         
                         .requestMatchers(HttpMethod.GET,
                                 "/api/categories/**").permitAll()
@@ -83,47 +86,29 @@ public class SecurityConfig {
         return http.build();
     }
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
+	@Bean
+	public PasswordEncoder passwordEncoder() {
 
-        return new BCryptPasswordEncoder();
-    }
+		return new BCryptPasswordEncoder();
+	}
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+	@Bean
+	public CorsConfigurationSource corsConfigurationSource() {
 
-        CorsConfiguration configuration =
-                new CorsConfiguration();
+		CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(
-                List.of(
-                        "http://localhost:3000",
-                        "http://localhost:5173"
-                ));
+		configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173"));
 
-        configuration.setAllowedMethods(
-                List.of(
-                        "GET",
-                        "POST",
-                        "PUT",
-                        "DELETE",
-                        "OPTIONS"
-                ));
+		configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
 
-        configuration.setAllowedHeaders(
-                List.of("*"));
+		configuration.setAllowedHeaders(List.of("*"));
 
-        configuration.setAllowCredentials(true);
+		configuration.setAllowCredentials(true);
 
-        UrlBasedCorsConfigurationSource source =
-                new UrlBasedCorsConfigurationSource();
+		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 
-        source.registerCorsConfiguration(
-                "/**",
-                configuration);
+		source.registerCorsConfiguration("/**", configuration);
 
-        return source;
-    }
+		return source;
+	}
 }
-
-

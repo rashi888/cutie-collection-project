@@ -394,3 +394,11 @@ If all these pass successfully, then:
 ✅ Product Module Complete
 
 and you're ready to start **Module 4: Cart Management** 🛒🚀.
+
+
+POST   /api/cart/add
+GET    /api/cart
+PUT    /api/cart/update/{itemId}
+DELETE /api/cart/remove/{itemId}
+DELETE /api/cart/clear
+

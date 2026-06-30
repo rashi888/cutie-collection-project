@@ -9,17 +9,22 @@ import Home from "./pages/Home";
 import CategoryPage from "./pages/CategoryPage";
 import ManageCategories from "./pages/ManageCategories";
 
-import "react-toastify/dist/ReactToastify.css";
-import "./styles/toast.css";
 import ProductPage from "./pages/ProductPage";
 import ManageProducts from "./pages/ManageProducts";
+
+import CartPage from "./pages/CartPage";
+
+import "react-toastify/dist/ReactToastify.css";
+import "./styles/toast.css";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
+
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+
         <Route
           path="/"
           element={
@@ -64,17 +69,23 @@ function App() {
             </ProtectedRoute>
           }
         />
+
+        <Route
+          path="/cart"
+          element={
+            <ProtectedRoute>
+              <CartPage />
+            </ProtectedRoute>
+          }
+        />
+
       </Routes>
 
       <ToastContainer
         position="top-right"
         autoClose={3000}
-        closeOnClick
-        pauseOnHover
-        draggable
-        newestOnTop
-        theme="light"
       />
+
     </BrowserRouter>
   );
 }
