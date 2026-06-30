@@ -203,7 +203,10 @@ export default function CartPage() {
                   <span style={styles.totalValue}>₹{total.toFixed(2)}</span>
                 </div>
 
-                <button style={styles.checkoutBtn}>
+                <button
+                  style={styles.checkoutBtn}
+                  onClick={() => navigate("/checkout")}
+                >
                   Proceed to Checkout 💕
                 </button>
 

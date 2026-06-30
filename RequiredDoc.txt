@@ -402,3 +402,35 @@ PUT    /api/cart/update/{itemId}
 DELETE /api/cart/remove/{itemId}
 DELETE /api/cart/clear
 
+
+POST   /api/orders/place
+GET    /api/orders/my
+GET    /api/orders/{orderId}
+DELETE /api/orders/{orderId}/cancel
+
+
+
+
+# CART
+
+POST   http://localhost:8080/api/cart/add
+
+GET    http://localhost:8080/api/cart
+
+PUT    http://localhost:8080/api/cart/update/{itemId}
+
+DELETE http://localhost:8080/api/cart/remove/{itemId}
+
+DELETE http://localhost:8080/api/cart/clear
+
+
+# ORDERS
+
+POST   http://localhost:8080/api/orders/place
+
+GET    http://localhost:8080/api/orders/my
+
+GET    http://localhost:8080/api/orders/{orderId}
+
+DELETE http://localhost:8080/api/orders/{orderId}/cancel
+
