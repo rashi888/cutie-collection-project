@@ -41,7 +41,7 @@ public class AuthService {
 
         user.setName(request.getName());
         user.setEmail(request.getEmail());
-        user.setRole("ROLE_USER");
+        user.setRole("USER");
         user.setPassword(
                 passwordEncoder.encode(
                         request.getPassword()));
@@ -55,7 +55,8 @@ public class AuthService {
         return new AuthResponse(
                 token,
                 user.getName(),
-                "User registered successfully");
+                "User registered successfully",
+                user.getRole());
     }
 
     public AuthResponse login(
@@ -86,6 +87,7 @@ public class AuthService {
         return new AuthResponse(
                 token,
                 user.getName(),
-                "Login successful");
+                "Login successful",
+                user.getRole());
     }
 }

@@ -5,17 +5,24 @@ public class AuthResponse {
     private String token;
     private String name;
     private String message;
+    private String role;
+
+  
 
     public AuthResponse() {
-    }
+		super();
+		// TODO Auto-generated constructor stub
+	}
 
-    public AuthResponse(String token, String name, String message) {
-        this.token = token;
-        this.name = name;
-        this.message = message;
-    }
+	public AuthResponse(String token, String name, String message, String role) {
+		super();
+		this.token = token;
+		this.name = name;
+		this.message = message;
+		this.role = role;
+	}
 
-    public String getToken() {
+	public String getToken() {
         return token;
     }
 
@@ -38,4 +45,13 @@ public class AuthResponse {
     public void setMessage(String message) {
         this.message = message;
     }
+
+	public String getRole() {
+		return role;
+	}
+
+	public void setRole(String role) {
+		this.role = role;
+	}
+    
 }

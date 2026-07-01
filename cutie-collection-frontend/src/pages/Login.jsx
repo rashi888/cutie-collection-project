@@ -3,10 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useEffect } from "react";
 
-import {
-  showSuccess,
-  showError,
-} from "../utils/toastUtils";
+import { showSuccess, showError } from "../utils/toastUtils";
 
 export default function Login() {
   const [form, setForm] = useState({
@@ -26,15 +23,13 @@ export default function Login() {
     });
   };
 
-  
-useEffect(() => {
-  const token = localStorage.getItem("token");
+  useEffect(() => {
+    const token = localStorage.getItem("token");
 
-  if (token) {
-    navigate("/home");
-  }
-}, []);
-
+    if (token) {
+      navigate("/");
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -52,33 +47,23 @@ useEffect(() => {
         {
           email: form.email,
           password: form.password,
-        }
+        },
       );
 
-      localStorage.setItem(
-  "token",
-  response.data.token
-);
-
-localStorage.setItem(
-  "username",
-  response.data.name
-);
-      
+      localStorage.setItem("token", response.data.token);
+      localStorage.setItem("username", response.data.name);
+      localStorage.setItem("role", response.data.role); // 🆕 save role: "ADMIN" or "USER"
 
       showSuccess("Welcome back, Cutie! 💕");
 
       setTimeout(() => {
         navigate("/");
       }, 1500);
-
     } catch (error) {
       const message =
-        error.response?.data?.message ||
-        "Invalid email or password 💔";
+        error.response?.data?.message || "Invalid email or password 💔";
 
       showError(message);
-
     } finally {
       setLoading(false);
     }
@@ -135,9 +120,7 @@ localStorage.setItem(
 
               <span
                 style={styles.toggleEye}
-                onClick={() =>
-                  setShowPassword(!showPassword)
-                }
+                onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? "🙈" : "👁️"}
               </span>
@@ -145,10 +128,7 @@ localStorage.setItem(
           </div>
 
           <div style={styles.forgotRow}>
-            <Link
-              to="/forgot-password"
-              style={styles.forgotLink}
-            >
+            <Link to="/forgot-password" style={styles.forgotLink}>
               Forgot password?
             </Link>
           </div>
@@ -159,9 +139,7 @@ localStorage.setItem(
             style={{
               ...styles.btn,
               opacity: loading ? 0.7 : 1,
-              cursor: loading
-                ? "not-allowed"
-                : "pointer",
+              cursor: loading ? "not-allowed" : "pointer",
             }}
           >
             {loading ? "Logging in..." : "Login 🌷"}
@@ -171,30 +149,21 @@ localStorage.setItem(
         {/* Divider */}
         <div style={styles.divider}>
           <span style={styles.dividerLine} />
-          <span style={styles.dividerText}>
-            or continue with
-          </span>
+          <span style={styles.dividerText}>or continue with</span>
           <span style={styles.dividerLine} />
         </div>
 
         {/* Social */}
         <div style={styles.socialRow}>
-          <button style={styles.socialBtn}>
-            🌐 Google
-          </button>
+          <button style={styles.socialBtn}>🌐 Google</button>
 
-          <button style={styles.socialBtn}>
-            🍎 Apple
-          </button>
+          <button style={styles.socialBtn}>🍎 Apple</button>
         </div>
 
         {/* Footer */}
         <p style={styles.footerText}>
           Don't have an account?{" "}
-          <Link
-            to="/signup"
-            style={styles.footerLink}
-          >
+          <Link to="/signup" style={styles.footerLink}>
             Sign up ✨
           </Link>
         </p>
@@ -206,8 +175,7 @@ localStorage.setItem(
 const styles = {
   wrapper: {
     minHeight: "100vh",
-    background:
-      "linear-gradient(135deg, #fff0f5 0%, #fce4ec 100%)",
+    background: "linear-gradient(135deg, #fff0f5 0%, #fce4ec 100%)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -222,8 +190,7 @@ const styles = {
     right: "-80px",
     width: "320px",
     height: "320px",
-    background:
-      "radial-gradient(circle, #f8bbd0 0%, #f48fb1 100%)",
+    background: "radial-gradient(circle, #f8bbd0 0%, #f48fb1 100%)",
     borderRadius: "50%",
     opacity: 0.35,
     filter: "blur(40px)",
@@ -235,8 +202,7 @@ const styles = {
     left: "-80px",
     width: "380px",
     height: "380px",
-    background:
-      "radial-gradient(circle, #fce4ec 0%, #f8bbd0 100%)",
+    background: "radial-gradient(circle, #fce4ec 0%, #f8bbd0 100%)",
     borderRadius: "50%",
     opacity: 0.4,
     filter: "blur(50px)",
@@ -249,10 +215,8 @@ const styles = {
     padding: "48px 40px",
     width: "100%",
     maxWidth: "420px",
-    boxShadow:
-      "0 20px 60px rgba(244, 143, 177, 0.25)",
-    border:
-      "1.5px solid rgba(248, 187, 208, 0.4)",
+    boxShadow: "0 20px 60px rgba(244, 143, 177, 0.25)",
+    border: "1.5px solid rgba(248, 187, 208, 0.4)",
     position: "relative",
     zIndex: 1,
   },
@@ -347,8 +311,7 @@ const styles = {
   },
 
   btn: {
-    background:
-      "linear-gradient(135deg, #f06292 0%, #e91e8c 100%)",
+    background: "linear-gradient(135deg, #f06292 0%, #e91e8c 100%)",
     color: "#fff",
     border: "none",
     borderRadius: "14px",
@@ -356,8 +319,7 @@ const styles = {
     fontSize: "15px",
     fontWeight: "600",
     letterSpacing: "0.5px",
-    boxShadow:
-      "0 6px 20px rgba(233, 30, 140, 0.35)",
+    boxShadow: "0 6px 20px rgba(233, 30, 140, 0.35)",
     fontFamily: "'Poppins', sans-serif",
     marginTop: "4px",
   },

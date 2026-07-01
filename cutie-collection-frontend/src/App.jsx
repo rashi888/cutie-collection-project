@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
+
 import ProtectedRoute from "./components/ProtectedRoute";
 
 import Login from "./pages/Login";
@@ -13,7 +14,6 @@ import ProductPage from "./pages/ProductPage";
 import ManageProducts from "./pages/ManageProducts";
 
 import CartPage from "./pages/CartPage";
-
 import OrdersPage from "./pages/OrdersPage";
 import CheckoutPage from "./pages/CheckoutPage";
 
@@ -24,6 +24,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
 
@@ -46,28 +47,10 @@ function App() {
         />
 
         <Route
-          path="/manage-categories"
-          element={
-            <ProtectedRoute>
-              <ManageCategories />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
           path="/products"
           element={
             <ProtectedRoute>
               <ProductPage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/manage-products"
-          element={
-            <ProtectedRoute>
-              <ManageProducts />
             </ProtectedRoute>
           }
         />
@@ -82,14 +65,6 @@ function App() {
         />
 
         <Route
-          path="/orders"
-          element={
-            <ProtectedRoute>
-              <OrdersPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/checkout"
           element={
             <ProtectedRoute>
@@ -97,9 +72,42 @@ function App() {
             </ProtectedRoute>
           }
         />
+
+        <Route
+          path="/orders"
+          element={
+            <ProtectedRoute>
+              <OrdersPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin Only */}
+
+        <Route
+          path="/manage-categories"
+          element={
+            <ProtectedRoute adminOnly>
+              <ManageCategories />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/manage-products"
+          element={
+            <ProtectedRoute adminOnly>
+              <ManageProducts />
+            </ProtectedRoute>
+          }
+        />
+
       </Routes>
 
-      <ToastContainer position="top-right" autoClose={3000} />
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+      />
     </BrowserRouter>
   );
 }
