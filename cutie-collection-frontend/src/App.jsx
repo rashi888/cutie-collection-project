@@ -17,6 +17,8 @@ import CartPage from "./pages/CartPage";
 import OrdersPage from "./pages/OrdersPage";
 import CheckoutPage from "./pages/CheckoutPage";
 
+import WishlistPage from "./pages/WishlistPage";
+
 import "react-toastify/dist/ReactToastify.css";
 import "./styles/toast.css";
 
@@ -24,7 +26,6 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
 
@@ -102,12 +103,17 @@ function App() {
           }
         />
 
+        <Route
+          path="/wishlist"
+          element={
+            <ProtectedRoute>
+              <WishlistPage />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
 
-      <ToastContainer
-        position="top-right"
-        autoClose={3000}
-      />
+      <ToastContainer position="top-right" autoClose={3000} />
     </BrowserRouter>
   );
 }

@@ -5,6 +5,7 @@ import ProductService from "../api/ProductService";
 import CategoryService from "../api/CategoryService";
 import ProductCard from "../components/ProductCard";
 import CartService from "../api/CartService";
+import WishlistService from "../api/WishlistService";
 
 export default function ProductPage() {
   const [products, setProducts] = useState([]);
@@ -65,13 +66,21 @@ export default function ProductPage() {
     }
   };
 
+  const handleAddToWishlist = async (product) => {
+    try {
+      await WishlistService.addToWishlist(product.id);
+      toast.success(`${product.name} added to wishlist 💖`);
+    } catch (error) {
+      toast.error("Failed to add to wishlist 💔");
+    }
+  };
+
   const filtered = products.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase())
+    p.name.toLowerCase().includes(search.toLowerCase()),
   );
 
   return (
     <div style={styles.page}>
-
       {/* NAVBAR */}
       <nav style={styles.navbar}>
         <div style={styles.navBrand}>
@@ -80,10 +89,28 @@ export default function ProductPage() {
         </div>
 
         <div style={styles.navLinks}>
-          <a href="/" style={styles.navLink}>Home</a>
-          <a href="/categories" style={styles.navLink}>Categories</a>
-          <a href="/products" style={{ ...styles.navLink, color: "#e91e8c", fontWeight: "700" }}>
+          <a href="/" style={styles.navLink}>
+            Home
+          </a>
+          <a href="/categories" style={styles.navLink}>
+            Categories
+          </a>
+          <a
+            href="/products"
+            style={{ ...styles.navLink, color: "#e91e8c", fontWeight: "700" }}
+          >
             Products
+          </a>
+          <a href="/wishlist" style={styles.navLink}>
+            💖 Wishlist
+          </a>
+
+          <a href="/cart" style={styles.navLink}>
+            🛒 Cart
+          </a>
+
+          <a href="/orders" style={styles.navLink}>
+            📦 Orders
           </a>
         </div>
 
@@ -100,7 +127,10 @@ export default function ProductPage() {
           </div>
 
           <button
-            onClick={() => { localStorage.removeItem("token"); navigate("/login"); }}
+            onClick={() => {
+              localStorage.removeItem("token");
+              navigate("/login");
+            }}
             style={styles.logoutBtn}
           >
             🌸 Logout
@@ -122,11 +152,14 @@ export default function ProductPage() {
       </div>
 
       <div style={styles.container}>
-
         {/* CATEGORY FILTER */}
         <div style={styles.filterRow}>
           <button
-            style={selectedCategory === "" ? styles.filterBtnActive : styles.filterBtn}
+            style={
+              selectedCategory === ""
+                ? styles.filterBtnActive
+                : styles.filterBtn
+            }
             onClick={() => handleCategoryFilter("")}
           >
             All 🌸
@@ -166,6 +199,7 @@ export default function ProductPage() {
                 key={product.id}
                 product={product}
                 onAddToCart={handleAddToCart}
+                onAddToWishlist={handleAddToWishlist}
               />
             ))}
           </div>
@@ -176,7 +210,6 @@ export default function ProductPage() {
       <footer style={styles.footer}>
         <p>© 2024 Cutie Collection. Made with 💕 for all cuties.</p>
       </footer>
-
     </div>
   );
 }

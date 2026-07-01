@@ -51,8 +51,10 @@ public class SecurityConfig {
 
                         .requestMatchers("/api/auth/**").permitAll()
 
+//                        .requestMatchers("/api/wishlist/**")
+//                        .authenticated()
                         .requestMatchers("/api/wishlist/**")
-                        .authenticated()
+                        .permitAll()
 
                         .requestMatchers("/api/order/**")
                         .authenticated()

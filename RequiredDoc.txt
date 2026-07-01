@@ -438,3 +438,20 @@ GET    http://localhost:8080/api/orders/{orderId}
 
 DELETE http://localhost:8080/api/orders/{orderId}/cancel
 
+
+=====================================================================================
+
+Wishlist module:
+
+
+POST /api/wishlist/add/1
+
+GET /api/wishlist/clearGET /api/wishlist
+
+DELETE /api/wishlist/remove/1
+
+ GET /api/wishlist
+POST /api/wishlist/add/{productId}
+
+
+
