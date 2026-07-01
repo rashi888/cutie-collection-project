@@ -59,7 +59,7 @@ public class SecurityConfig {
                         
 
                         .requestMatchers("/api/cart/**")
-                        .permitAll()
+                        .authenticated()
 
                         
                         .requestMatchers(HttpMethod.GET,

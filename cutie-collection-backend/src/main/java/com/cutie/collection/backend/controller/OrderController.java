@@ -3,10 +3,14 @@ package com.cutie.collection.backend.controller;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import com.cutie.collection.backend.dto.OrderRequest;
 import com.cutie.collection.backend.dto.OrderResponse;
+import com.cutie.collection.backend.entity.User;
+import com.cutie.collection.backend.repository.UserRepository;
 import com.cutie.collection.backend.service.OrderService;
 
 @RestController
@@ -15,49 +19,53 @@ import com.cutie.collection.backend.service.OrderService;
 public class OrderController {
 
     private final OrderService orderService;
+    private final UserRepository userRepository;
 
-    public OrderController(
-            OrderService orderService) {
+    public OrderController(OrderService orderService,
+                           UserRepository userRepository) {
         this.orderService = orderService;
+        this.userRepository = userRepository;
     }
 
-    // Temporary until JWT integration
-    private static final Long USER_ID = 1L;
+    // ✅ Helper: get logged-in user's ID from JWT
+    private Long getLoggedInUserId(UserDetails userDetails) {
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return user.getId();
+    }
 
+    // Place order from cart
     @PostMapping("/place")
-    public ResponseEntity<OrderResponse> placeOrder() {
+    public ResponseEntity<OrderResponse> placeOrder(
+            @AuthenticationPrincipal UserDetails userDetails) {
 
-        OrderResponse response =
-                orderService.createOrder(
-                        USER_ID,
-                        new OrderRequest());
-
-        return ResponseEntity.ok(response);
+        Long userId = getLoggedInUserId(userDetails);
+        return ResponseEntity.ok(
+                orderService.createOrder(userId, new OrderRequest()));
     }
 
+    // Get my orders
     @GetMapping("/my")
-    public ResponseEntity<List<OrderResponse>>
-            getMyOrders() {
+    public ResponseEntity<List<OrderResponse>> getMyOrders(
+            @AuthenticationPrincipal UserDetails userDetails) {
 
-        return ResponseEntity.ok(
-                orderService.getMyOrders(USER_ID));
+        Long userId = getLoggedInUserId(userDetails);
+        return ResponseEntity.ok(orderService.getMyOrders(userId));
     }
 
+    // Get order by ID
     @GetMapping("/{orderId}")
-    public ResponseEntity<OrderResponse>
-            getOrderById(
-                    @PathVariable Long orderId) {
+    public ResponseEntity<OrderResponse> getOrderById(
+            @PathVariable Long orderId) {
 
-        return ResponseEntity.ok(
-                orderService.getOrderById(orderId));
+        return ResponseEntity.ok(orderService.getOrderById(orderId));
     }
 
+    // Cancel order
     @DeleteMapping("/{orderId}/cancel")
-    public ResponseEntity<OrderResponse>
-            cancelOrder(
-                    @PathVariable Long orderId) {
+    public ResponseEntity<OrderResponse> cancelOrder(
+            @PathVariable Long orderId) {
 
-        return ResponseEntity.ok(
-                orderService.cancelOrder(orderId));
+        return ResponseEntity.ok(orderService.cancelOrder(orderId));
     }
 }

@@ -3,10 +3,14 @@ package com.cutie.collection.backend.controller;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import com.cutie.collection.backend.dto.CartRequest;
 import com.cutie.collection.backend.dto.CartResponse;
+import com.cutie.collection.backend.entity.User;
+import com.cutie.collection.backend.repository.UserRepository;
 import com.cutie.collection.backend.service.CartService;
 
 import jakarta.validation.Valid;
@@ -17,31 +21,38 @@ import jakarta.validation.Valid;
 public class CartController {
 
     private final CartService cartService;
+    private final UserRepository userRepository;
 
-    public CartController(CartService cartService) {
+    public CartController(CartService cartService,
+                          UserRepository userRepository) {
         this.cartService = cartService;
+        this.userRepository = userRepository;
     }
 
-    // Temporary user id (replace with JWT user later)
-    private static final Long USER_ID = 1L;
+    // ✅ Helper: get logged-in user's ID from JWT
+    private Long getLoggedInUserId(UserDetails userDetails) {
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return user.getId();
+    }
 
     // Add item to cart
     @PostMapping("/add")
     public ResponseEntity<CartResponse> addToCart(
+            @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody CartRequest request) {
 
-        return ResponseEntity.ok(
-                cartService.addToCart(
-                        USER_ID,
-                        request));
+        Long userId = getLoggedInUserId(userDetails);
+        return ResponseEntity.ok(cartService.addToCart(userId, request));
     }
 
     // Get all cart items
     @GetMapping
-    public ResponseEntity<List<CartResponse>> getCart() {
+    public ResponseEntity<List<CartResponse>> getCart(
+            @AuthenticationPrincipal UserDetails userDetails) {
 
-        return ResponseEntity.ok(
-                cartService.getCart(USER_ID));
+        Long userId = getLoggedInUserId(userDetails);
+        return ResponseEntity.ok(cartService.getCart(userId));
     }
 
     // Update quantity
@@ -51,9 +62,7 @@ public class CartController {
             @RequestBody CartRequest request) {
 
         return ResponseEntity.ok(
-                cartService.updateQuantity(
-                        itemId,
-                        request.getQuantity()));
+                cartService.updateQuantity(itemId, request.getQuantity()));
     }
 
     // Remove item from cart
@@ -62,16 +71,16 @@ public class CartController {
             @PathVariable Long itemId) {
 
         cartService.removeFromCart(itemId);
-
         return ResponseEntity.noContent().build();
     }
 
     // Clear entire cart
     @DeleteMapping("/clear")
-    public ResponseEntity<Void> clearCart() {
+    public ResponseEntity<Void> clearCart(
+            @AuthenticationPrincipal UserDetails userDetails) {
 
-        cartService.clearCart(USER_ID);
-
+        Long userId = getLoggedInUserId(userDetails);
+        cartService.clearCart(userId);
         return ResponseEntity.noContent().build();
     }
 }

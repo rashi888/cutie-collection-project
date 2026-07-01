@@ -2,9 +2,13 @@ user1
 user1@gmail.com
 123456
 
+
+
 admin
 admin@gmail.com
 123456789
+
+from db i can check
 
 *********************POSTMAN API TESTING***********************************
 
