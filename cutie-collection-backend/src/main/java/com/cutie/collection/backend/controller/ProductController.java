@@ -2,9 +2,19 @@ package com.cutie.collection.backend.controller;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.cutie.collection.backend.dto.ProductRequest;
 import com.cutie.collection.backend.dto.ProductResponse;
@@ -85,5 +95,39 @@ public class ProductController {
         return ResponseEntity.ok(
                 productService.getProductsByCategory(
                         categoryId));
+    }
+    
+    @GetMapping("/paged")
+    public ResponseEntity<Page<ProductResponse>>
+    getProductsPaged(
+
+            @RequestParam(defaultValue = "0")
+            int page,
+
+            @RequestParam(defaultValue = "12")
+            int size,
+
+            @RequestParam(defaultValue = "id")
+            String sortBy,
+
+            @RequestParam(defaultValue = "asc")
+            String direction) {
+
+        return ResponseEntity.ok(
+                productService.getProducts(
+                        page,
+                        size,
+                        sortBy,
+                        direction));
+    }
+    
+    @GetMapping("/search")
+    public ResponseEntity<List<ProductResponse>>
+    searchProducts(
+            @RequestParam String keyword) {
+
+        return ResponseEntity.ok(
+                productService.searchProducts(
+                        keyword));
     }
 }

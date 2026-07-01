@@ -40,13 +40,13 @@ export default function CategoryPage() {
         <button
           onClick={() => { localStorage.removeItem("token"); navigate("/login"); }}
           style={styles.logoutBtn}
-        >l
+        >
           🌸 Logout
         </button>
       </nav>
 
       {/* HEADER */}
-      <div style={styes.header}>
+      <div style={styles.header}>  {/* ✅ was: styes.header */}
         <div style={styles.blob1} />
         <div style={styles.blob2} />
         <div style={styles.headerContent}>

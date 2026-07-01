@@ -1,42 +1,6 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import api from "../api/axiosConfig";
-
-const products = [
-  { id: 1, name: "Blossom Tote Bag", price: "$24.99", emoji: "👜", tag: "New" },
-  {
-    id: 2,
-    name: "Pastel Hair Clips Set",
-    price: "$9.99",
-    emoji: "🎀",
-    tag: "Hot",
-  },
-  {
-    id: 3,
-    name: "Strawberry Lip Gloss",
-    price: "$14.99",
-    emoji: "🍓",
-    tag: "New",
-  },
-  {
-    id: 4,
-    name: "Fluffy Scrunchie Pack",
-    price: "$7.99",
-    emoji: "🌸",
-    tag: "",
-  },
-  { id: 5, name: "Heart Sunglasses", price: "$19.99", emoji: "🕶️", tag: "Hot" },
-  { id: 6, name: "Cutie Planner 2024", price: "$17.99", emoji: "📓", tag: "" },
-  {
-    id: 7,
-    name: "Rose Perfume Mini",
-    price: "$29.99",
-    emoji: "🌹",
-    tag: "New",
-  },
-  { id: 8, name: "Cloud Pillow Cover", price: "$22.99", emoji: "☁️", tag: "" },
-];
 
 const categories = [
   { name: "Accessories", emoji: "💍" },
@@ -52,88 +16,105 @@ export default function Home() {
   const [wishlist, setWishlist] = useState([]);
   const [search, setSearch] = useState("");
   const [user, setUser] = useState(null);
-
-  // const username =
-  // localStorage.getItem("username") || "Guest";
-
-  // const initial =
-  //   username.charAt(0).toUpperCase();
+  const [products, setProducts] = useState([]);
 
   const username = user?.name || "";
-
   const initial = username ? username.charAt(0).toUpperCase() : "";
 
-  const toggleWishlist = (id) => {
-    setWishlist((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
-    );
+  const navigate = useNavigate();
+
+  // ── Fetch current user ──────────────────────────────────────────────
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) { navigate("/login"); return; }
+
+    api.get("/api/user/me")
+      .then((r) => setUser(r.data))
+      .catch(console.error);
+  }, []);
+
+  // ── Fetch products from API ─────────────────────────────────────────
+  useEffect(() => {
+    api.get("/api/products")
+      .then((r) => setProducts(r.data))
+      .catch(console.error);
+  }, []);
+
+  // ── Fetch cart count ────────────────────────────────────────────────
+  useEffect(() => {
+    api.get("/api/cart")
+      .then((r) => setCartCount(r.data.length))
+      .catch(console.error);
+  }, []);
+
+  // ── Fetch wishlist ──────────────────────────────────────────────────
+  useEffect(() => {
+    api.get("/api/wishlist")
+      .then((r) => setWishlist(r.data.map((item) => item.product?.id ?? item.id)))
+      .catch(console.error);
+  }, []);
+
+  const toggleWishlist = async (productId) => {
+    try {
+      if (wishlist.includes(productId)) {
+        await api.delete(`/api/wishlist/remove/${productId}`);
+        setWishlist((prev) => prev.filter((i) => i !== productId));
+      } else {
+        await api.post(`/api/wishlist/add/${productId}`);
+        setWishlist((prev) => [...prev, productId]);
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const filtered = products.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase()),
-  );
-
-  const navigate = useNavigate();
+  const addToCart = async (product) => {
+    try {
+      await api.post("/api/cart/add", { productId: product.id, quantity: 1 });
+      setCartCount((c) => c + 1);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     navigate("/login");
   };
 
-  const testJwt = async () => {
-    try {
-      const response = await api.get("/api/user/profile");
-
-      console.log(response.data);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      navigate("/login");
-    }
-  }, []);
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const response = await api.get("/api/user/me");
-
-        setUser(response.data);
-      } catch (error) {
-        console.error(error);
-      }
-    };
-
-    fetchUser();
-  }, []);
+  const filtered = products.filter((p) =>
+    p.name.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div style={styles.page}>
       {/* ── NAVBAR ── */}
       <nav style={styles.navbar}>
-        <div style={styles.navBrand}>
-          <span style={styles.navLogo}>🌸</span>
-          <span style={styles.navTitle}>Cutie Collection</span>
-        </div>
+        <Link to="/" style={{ textDecoration: "none" }}>
+          <div style={styles.navBrand}>
+            <span style={styles.navLogo}>🌸</span>
+            <span style={styles.navTitle}>Cutie Collection</span>
+          </div>
+        </Link>
+
         <div style={styles.navLinks}>
-          <a href="#" style={styles.navLink}>
-            Home
-          </a>
-          <a href="#" style={styles.navLink}>
-            Shop
-          </a>
-          <a href="#" style={styles.navLink}>
-            About
-          </a>
-          <a href="#" style={styles.navLink}>
-            Contact
-          </a>
+          <Link to="/" style={styles.navLink}>Home</Link>
+          <Link to="/products" style={styles.navLink}>Shop</Link>
+          <Link to="/categories" style={styles.navLink}>Categories</Link>
+          <Link to="/orders" style={styles.navLink}>My Orders</Link>
+          <Link to="/wishlist" style={styles.navLink}>Wishlist 💗</Link>
+          {user?.role === "ADMIN" && (
+            <>
+              <Link to="/manage-categories" style={{ ...styles.navLink, color: "#9c27b0" }}>
+                Manage Categories
+              </Link>
+              <Link to="/manage-products" style={{ ...styles.navLink, color: "#9c27b0" }}>
+                Manage Products
+              </Link>
+            </>
+          )}
         </div>
+
         <div style={styles.navActions}>
           <div style={styles.searchBox}>
             <span>🔍</span>
@@ -145,26 +126,22 @@ export default function Home() {
               style={styles.searchInput}
             />
           </div>
-          <button style={styles.cartBtn}>
-            🛒
-            {cartCount > 0 && <span style={styles.cartBadge}>{cartCount}</span>}
-          </button>
-          {/* <Link to="/login" style={styles.loginBtn}>Login</Link> */}
-          {localStorage.getItem("username") ? (
+
+          <Link to="/cart" style={{ textDecoration: "none" }}>
+            <button style={styles.cartBtn}>
+              🛒
+              {cartCount > 0 && <span style={styles.cartBadge}>{cartCount}</span>}
+            </button>
+          </Link>
+
+          {user ? (
             <div style={styles.userSection}>
               <div style={styles.userAvatar}>{initial}</div>
-
               <span style={styles.userName}>{username}</span>
             </div>
           ) : (
-            <Link to="/login" style={styles.loginBtn}>
-              Login
-            </Link>
+            <Link to="/login" style={styles.loginBtn}>Login</Link>
           )}
-
-          {/* <button onClick={testJwt} style={styles.loginBtn}>
-            Test JWT 🌸
-          </button> */}
 
           <button onClick={handleLogout} style={styles.logoutBtn}>
             🌸 Logout
@@ -187,8 +164,12 @@ export default function Home() {
             Discover handpicked adorable collections just for you 💕
           </p>
           <div style={styles.heroBtns}>
-            <button style={styles.heroBtn}>Shop Now 🛍️</button>
-            <button style={styles.heroBtnOutline}>View Lookbook 💖</button>
+            <Link to="/products" style={{ textDecoration: "none" }}>
+              <button style={styles.heroBtn}>Shop Now 🛍️</button>
+            </Link>
+            <Link to="/categories" style={{ textDecoration: "none" }}>
+              <button style={styles.heroBtnOutline}>Browse Categories 💖</button>
+            </Link>
           </div>
           <div style={styles.heroStats}>
             <div style={styles.stat}>
@@ -222,10 +203,16 @@ export default function Home() {
         <p style={styles.sectionSub}>Find your favourite cutie picks</p>
         <div style={styles.categoryGrid}>
           {categories.map((cat) => (
-            <div key={cat.name} style={styles.categoryCard}>
-              <span style={styles.categoryEmoji}>{cat.emoji}</span>
-              <span style={styles.categoryName}>{cat.name}</span>
-            </div>
+            <Link
+              key={cat.name}
+              to={`/products?category=${encodeURIComponent(cat.name)}`}
+              style={{ textDecoration: "none" }}
+            >
+              <div style={styles.categoryCard}>
+                <span style={styles.categoryEmoji}>{cat.emoji}</span>
+                <span style={styles.categoryName}>{cat.name}</span>
+              </div>
+            </Link>
           ))}
         </div>
       </section>
@@ -246,12 +233,31 @@ export default function Home() {
               >
                 {wishlist.includes(product.id) ? "❤️" : "🤍"}
               </button>
-              <div style={styles.productEmoji}>{product.emoji}</div>
-              <h3 style={styles.productName}>{product.name}</h3>
-              <p style={styles.productPrice}>{product.price}</p>
+              <Link
+                to={`/products`}
+                state={{ productId: product.id }}
+                style={{ textDecoration: "none" }}
+              >
+                <div style={styles.productEmoji}>
+                  {product.imageUrl ? (
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      style={{ width: "80px", height: "80px", objectFit: "contain" }}
+                      onError={(e) => { e.target.style.display = "none"; }}
+                    />
+                  ) : (
+                    "🛍️"
+                  )}
+                </div>
+                <h3 style={styles.productName}>{product.name}</h3>
+                <p style={styles.productPrice}>
+                  ₹{product.price ?? product.price}
+                </p>
+              </Link>
               <button
                 style={styles.addToCartBtn}
-                onClick={() => setCartCount((c) => c + 1)}
+                onClick={() => addToCart(product)}
               >
                 Add to Cart 🛒
               </button>
@@ -260,9 +266,16 @@ export default function Home() {
         </div>
         {filtered.length === 0 && (
           <p style={styles.noResult}>
-            No cuties found 😢 Try a different search!
+            {products.length === 0
+              ? "Loading cuties... 🌸"
+              : "No cuties found 😢 Try a different search!"}
           </p>
         )}
+        <div style={{ textAlign: "center", marginTop: "40px" }}>
+          <Link to="/products" style={{ textDecoration: "none" }}>
+            <button style={styles.heroBtn}>View All Products 🛍️</button>
+          </Link>
+        </div>
       </section>
 
       {/* ── BANNER ── */}
@@ -273,7 +286,9 @@ export default function Home() {
           <p style={styles.bannerSub}>
             Use code <strong>CUTIE20</strong> at checkout 💕
           </p>
-          <button style={styles.bannerBtn}>Claim Offer 🌸</button>
+          <Link to="/cart" style={{ textDecoration: "none" }}>
+            <button style={styles.bannerBtn}>Claim Offer 🌸</button>
+          </Link>
         </div>
       </section>
 
@@ -312,7 +327,7 @@ export default function Home() {
       <section style={styles.newsletter}>
         <h2 style={styles.newsletterTitle}>Stay Cute, Stay Updated 🌸</h2>
         <p style={styles.newsletterSub}>
-          Subscribe for new arrivals & exclusive deals!
+          Subscribe for new arrivals &amp; exclusive deals!
         </p>
         <div style={styles.newsletterForm}>
           <input
@@ -335,43 +350,27 @@ export default function Home() {
           </div>
           <div style={styles.footerLinks}>
             <span style={styles.footerLinkTitle}>Quick Links</span>
-            <a href="#" style={styles.footerLink}>
-              Home
-            </a>
-            <a href="#" style={styles.footerLink}>
-              Shop
-            </a>
-            <a href="#" style={styles.footerLink}>
-              About Us
-            </a>
-            <a href="#" style={styles.footerLink}>
-              Contact
-            </a>
+            <Link to="/" style={styles.footerLink}>Home</Link>
+            <Link to="/products" style={styles.footerLink}>Shop</Link>
+            <Link to="/categories" style={styles.footerLink}>Categories</Link>
+            <Link to="/orders" style={styles.footerLink}>My Orders</Link>
           </div>
           <div style={styles.footerLinks}>
-            <span style={styles.footerLinkTitle}>Help</span>
-            <a href="#" style={styles.footerLink}>
-              FAQ
-            </a>
-            <a href="#" style={styles.footerLink}>
-              Shipping Policy
-            </a>
-            <a href="#" style={styles.footerLink}>
-              Returns
-            </a>
-            <a href="#" style={styles.footerLink}>
-              Track Order
-            </a>
+            <span style={styles.footerLinkTitle}>Account</span>
+            <Link to="/cart" style={styles.footerLink}>My Cart 🛒</Link>
+            <Link to="/wishlist" style={styles.footerLink}>Wishlist 💗</Link>
+            <Link to="/checkout" style={styles.footerLink}>Checkout</Link>
+            <Link to="/login" style={styles.footerLink}>Login / Signup</Link>
           </div>
           <div style={styles.footerLinks}>
             <span style={styles.footerLinkTitle}>Follow Us</span>
-            <a href="#" style={styles.footerLink}>
+            <a href="https://instagram.com" target="_blank" rel="noreferrer" style={styles.footerLink}>
               Instagram 📸
             </a>
-            <a href="#" style={styles.footerLink}>
+            <a href="https://pinterest.com" target="_blank" rel="noreferrer" style={styles.footerLink}>
               Pinterest 📌
             </a>
-            <a href="#" style={styles.footerLink}>
+            <a href="https://tiktok.com" target="_blank" rel="noreferrer" style={styles.footerLink}>
               TikTok 🎵
             </a>
           </div>
@@ -391,7 +390,6 @@ const styles = {
     color: "#333",
     overflowX: "hidden",
   },
-  // NAVBAR
   navbar: {
     display: "flex",
     alignItems: "center",
@@ -406,10 +404,10 @@ const styles = {
     flexWrap: "wrap",
     gap: "12px",
   },
-  navBrand: { display: "flex", alignItems: "center", gap: "10px" },
+  navBrand: { display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" },
   navLogo: { fontSize: "28px" },
   navTitle: { fontSize: "20px", fontWeight: "700", color: "#e91e8c" },
-  navLinks: { display: "flex", gap: "28px" },
+  navLinks: { display: "flex", gap: "20px", flexWrap: "wrap" },
   navLink: {
     textDecoration: "none",
     color: "#c2185b",
@@ -445,32 +443,6 @@ const styles = {
     cursor: "pointer",
     position: "relative",
   },
-  userSection: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-  },
-
-  userAvatar: {
-    width: "42px",
-    height: "42px",
-    borderRadius: "50%",
-    background: "linear-gradient(135deg, #f06292, #e91e8c)",
-    color: "#fff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontWeight: "700",
-    fontSize: "16px",
-    boxShadow: "0 4px 12px rgba(233,30,140,0.3)",
-    cursor: "pointer",
-  },
-
-  userName: {
-    color: "#c2185b",
-    fontSize: "14px",
-    fontWeight: "600",
-  },
   cartBadge: {
     position: "absolute",
     top: "-4px",
@@ -485,6 +457,22 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
   },
+  userSection: { display: "flex", alignItems: "center", gap: "10px" },
+  userAvatar: {
+    width: "42px",
+    height: "42px",
+    borderRadius: "50%",
+    background: "linear-gradient(135deg, #f06292, #e91e8c)",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: "700",
+    fontSize: "16px",
+    boxShadow: "0 4px 12px rgba(233,30,140,0.3)",
+    cursor: "pointer",
+  },
+  userName: { color: "#c2185b", fontSize: "14px", fontWeight: "600" },
   loginBtn: {
     background: "linear-gradient(135deg, #f06292, #e91e8c)",
     color: "#fff",
@@ -507,9 +495,8 @@ const styles = {
     fontWeight: "600",
     cursor: "pointer",
     fontFamily: "'Poppins', sans-serif",
-    boxShadow: "0 4px 12px rgba(233, 30, 140, 0.25)",
+    boxShadow: "0 4px 12px rgba(233,30,140,0.25)",
   },
-  // HERO
   hero: {
     display: "flex",
     alignItems: "center",
@@ -523,144 +510,73 @@ const styles = {
     minHeight: "520px",
   },
   heroBlob1: {
-    position: "absolute",
-    top: "-100px",
-    right: "200px",
-    width: "350px",
-    height: "350px",
+    position: "absolute", top: "-100px", right: "200px",
+    width: "350px", height: "350px",
     background: "radial-gradient(circle, #f8bbd0, #f48fb1)",
-    borderRadius: "50%",
-    opacity: 0.2,
-    filter: "blur(60px)",
+    borderRadius: "50%", opacity: 0.2, filter: "blur(60px)",
   },
   heroBlob2: {
-    position: "absolute",
-    bottom: "-80px",
-    left: "-80px",
-    width: "300px",
-    height: "300px",
+    position: "absolute", bottom: "-80px", left: "-80px",
+    width: "300px", height: "300px",
     background: "radial-gradient(circle, #fce4ec, #f8bbd0)",
-    borderRadius: "50%",
-    opacity: 0.3,
-    filter: "blur(50px)",
+    borderRadius: "50%", opacity: 0.3, filter: "blur(50px)",
   },
   heroContent: { maxWidth: "520px", position: "relative", zIndex: 1 },
   heroBadge: {
-    background: "#fff",
-    color: "#e91e8c",
-    border: "1.5px solid #f8bbd0",
-    borderRadius: "20px",
-    padding: "6px 16px",
-    fontSize: "13px",
-    fontWeight: "600",
-    display: "inline-block",
-    marginBottom: "20px",
+    background: "#fff", color: "#e91e8c",
+    border: "1.5px solid #f8bbd0", borderRadius: "20px",
+    padding: "6px 16px", fontSize: "13px", fontWeight: "600",
+    display: "inline-block", marginBottom: "20px",
   },
   heroTitle: {
-    fontSize: "52px",
-    fontWeight: "800",
-    color: "#2d2d2d",
-    lineHeight: "1.15",
-    marginBottom: "16px",
+    fontSize: "52px", fontWeight: "800", color: "#2d2d2d",
+    lineHeight: "1.15", marginBottom: "16px",
   },
   heroAccent: { color: "#e91e8c" },
-  heroSub: {
-    fontSize: "16px",
-    color: "#888",
-    marginBottom: "32px",
-    lineHeight: "1.6",
-  },
-  heroBtns: {
-    display: "flex",
-    gap: "16px",
-    marginBottom: "40px",
-    flexWrap: "wrap",
-  },
+  heroSub: { fontSize: "16px", color: "#888", marginBottom: "32px", lineHeight: "1.6" },
+  heroBtns: { display: "flex", gap: "16px", marginBottom: "40px", flexWrap: "wrap" },
   heroBtn: {
     background: "linear-gradient(135deg, #f06292, #e91e8c)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "14px",
-    padding: "14px 28px",
-    fontSize: "15px",
-    fontWeight: "600",
-    cursor: "pointer",
-    boxShadow: "0 6px 20px rgba(233,30,140,0.3)",
+    color: "#fff", border: "none", borderRadius: "14px",
+    padding: "14px 28px", fontSize: "15px", fontWeight: "600",
+    cursor: "pointer", boxShadow: "0 6px 20px rgba(233,30,140,0.3)",
     fontFamily: "'Poppins', sans-serif",
   },
   heroBtnOutline: {
-    background: "transparent",
-    color: "#e91e8c",
-    border: "2px solid #f8bbd0",
-    borderRadius: "14px",
-    padding: "14px 28px",
-    fontSize: "15px",
-    fontWeight: "600",
-    cursor: "pointer",
-    fontFamily: "'Poppins', sans-serif",
+    background: "transparent", color: "#e91e8c",
+    border: "2px solid #f8bbd0", borderRadius: "14px",
+    padding: "14px 28px", fontSize: "15px", fontWeight: "600",
+    cursor: "pointer", fontFamily: "'Poppins', sans-serif",
   },
   heroStats: { display: "flex", alignItems: "center", gap: "20px" },
-  stat: {
-    display: "flex",
-    flexDirection: "column",
-    fontSize: "13px",
-    color: "#888",
-  },
+  stat: { display: "flex", flexDirection: "column", fontSize: "13px", color: "#888" },
   statDivider: { width: "1px", height: "30px", background: "#f8bbd0" },
   heroImage: { position: "relative", zIndex: 1 },
   heroImageCard: {
-    background: "rgba(255,255,255,0.8)",
-    backdropFilter: "blur(20px)",
-    borderRadius: "32px",
-    padding: "48px",
+    background: "rgba(255,255,255,0.8)", backdropFilter: "blur(20px)",
+    borderRadius: "32px", padding: "48px",
     border: "2px solid rgba(248,187,208,0.5)",
     boxShadow: "0 20px 60px rgba(244,143,177,0.2)",
-    textAlign: "center",
-    position: "relative",
+    textAlign: "center", position: "relative",
   },
   floatingBadge1: {
-    position: "absolute",
-    top: "16px",
-    right: "-16px",
-    background: "#e91e8c",
-    color: "#fff",
-    borderRadius: "20px",
-    padding: "6px 14px",
-    fontSize: "13px",
-    fontWeight: "600",
+    position: "absolute", top: "16px", right: "-16px",
+    background: "#e91e8c", color: "#fff", borderRadius: "20px",
+    padding: "6px 14px", fontSize: "13px", fontWeight: "600",
     boxShadow: "0 4px 12px rgba(233,30,140,0.3)",
   },
   floatingBadge2: {
-    position: "absolute",
-    bottom: "16px",
-    left: "-16px",
-    background: "#fff",
-    color: "#e91e8c",
-    border: "2px solid #f8bbd0",
-    borderRadius: "20px",
-    padding: "6px 14px",
-    fontSize: "13px",
-    fontWeight: "600",
+    position: "absolute", bottom: "16px", left: "-16px",
+    background: "#fff", color: "#e91e8c",
+    border: "2px solid #f8bbd0", borderRadius: "20px",
+    padding: "6px 14px", fontSize: "13px", fontWeight: "600",
   },
-  // SECTION
-  section: {
-    padding: "80px 60px",
-    background: "#fff",
-  },
+  section: { padding: "80px 60px", background: "#fff" },
   sectionTitle: {
-    fontSize: "32px",
-    fontWeight: "700",
-    color: "#e91e8c",
-    textAlign: "center",
-    marginBottom: "8px",
+    fontSize: "32px", fontWeight: "700", color: "#e91e8c",
+    textAlign: "center", marginBottom: "8px",
   },
-  sectionSub: {
-    fontSize: "15px",
-    color: "#aaa",
-    textAlign: "center",
-    marginBottom: "48px",
-  },
-  // CATEGORIES
+  sectionSub: { fontSize: "15px", color: "#aaa", textAlign: "center", marginBottom: "48px" },
   categoryGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
@@ -668,121 +584,62 @@ const styles = {
   },
   categoryCard: {
     background: "linear-gradient(135deg, #fff0f5, #fce4ec)",
-    borderRadius: "20px",
-    padding: "28px 16px",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "10px",
-    border: "1.5px solid #f8bbd0",
-    cursor: "pointer",
-    transition: "transform 0.2s",
+    borderRadius: "20px", padding: "28px 16px",
+    display: "flex", flexDirection: "column", alignItems: "center",
+    gap: "10px", border: "1.5px solid #f8bbd0",
+    cursor: "pointer", transition: "transform 0.2s",
   },
   categoryEmoji: { fontSize: "36px" },
   categoryName: { fontSize: "13px", fontWeight: "600", color: "#c2185b" },
-  // PRODUCTS
   productGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
     gap: "24px",
   },
   productCard: {
-    background: "#fff",
-    borderRadius: "20px",
-    padding: "24px",
-    border: "1.5px solid #f8bbd0",
-    position: "relative",
-    textAlign: "center",
-    boxShadow: "0 4px 20px rgba(244,143,177,0.1)",
+    background: "#fff", borderRadius: "20px", padding: "24px",
+    border: "1.5px solid #f8bbd0", position: "relative",
+    textAlign: "center", boxShadow: "0 4px 20px rgba(244,143,177,0.1)",
     transition: "transform 0.2s",
   },
   productTag: {
-    position: "absolute",
-    top: "14px",
-    left: "14px",
-    background: "#e91e8c",
-    color: "#fff",
-    borderRadius: "10px",
-    padding: "3px 10px",
-    fontSize: "11px",
-    fontWeight: "600",
+    position: "absolute", top: "14px", left: "14px",
+    background: "#e91e8c", color: "#fff", borderRadius: "10px",
+    padding: "3px 10px", fontSize: "11px", fontWeight: "600",
   },
   wishlistBtn: {
-    position: "absolute",
-    top: "12px",
-    right: "14px",
-    background: "none",
-    border: "none",
-    fontSize: "20px",
-    cursor: "pointer",
+    position: "absolute", top: "12px", right: "14px",
+    background: "none", border: "none", fontSize: "20px", cursor: "pointer",
   },
   productEmoji: { fontSize: "56px", marginBottom: "12px" },
-  productName: {
-    fontSize: "14px",
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: "6px",
-  },
-  productPrice: {
-    fontSize: "16px",
-    fontWeight: "700",
-    color: "#e91e8c",
-    marginBottom: "16px",
-  },
+  productName: { fontSize: "14px", fontWeight: "600", color: "#333", marginBottom: "6px" },
+  productPrice: { fontSize: "16px", fontWeight: "700", color: "#e91e8c", marginBottom: "16px" },
   addToCartBtn: {
     background: "linear-gradient(135deg, #f06292, #e91e8c)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "12px",
-    padding: "10px 20px",
-    fontSize: "13px",
-    fontWeight: "600",
-    cursor: "pointer",
-    fontFamily: "'Poppins', sans-serif",
-    width: "100%",
+    color: "#fff", border: "none", borderRadius: "12px",
+    padding: "10px 20px", fontSize: "13px", fontWeight: "600",
+    cursor: "pointer", fontFamily: "'Poppins', sans-serif", width: "100%",
   },
   noResult: { textAlign: "center", color: "#f48fb1", fontSize: "16px" },
-  // BANNER
   banner: {
     background: "linear-gradient(135deg, #e91e8c, #f06292)",
-    padding: "60px",
-    textAlign: "center",
-    position: "relative",
-    overflow: "hidden",
+    padding: "60px", textAlign: "center",
+    position: "relative", overflow: "hidden",
   },
   bannerBlob: {
-    position: "absolute",
-    top: "-60px",
-    right: "-60px",
-    width: "250px",
-    height: "250px",
-    background: "rgba(255,255,255,0.1)",
-    borderRadius: "50%",
+    position: "absolute", top: "-60px", right: "-60px",
+    width: "250px", height: "250px",
+    background: "rgba(255,255,255,0.1)", borderRadius: "50%",
   },
   bannerContent: { position: "relative", zIndex: 1 },
-  bannerTitle: {
-    fontSize: "32px",
-    fontWeight: "700",
-    color: "#fff",
-    marginBottom: "10px",
-  },
-  bannerSub: {
-    fontSize: "16px",
-    color: "rgba(255,255,255,0.9)",
-    marginBottom: "28px",
-  },
+  bannerTitle: { fontSize: "32px", fontWeight: "700", color: "#fff", marginBottom: "10px" },
+  bannerSub: { fontSize: "16px", color: "rgba(255,255,255,0.9)", marginBottom: "28px" },
   bannerBtn: {
-    background: "#fff",
-    color: "#e91e8c",
-    border: "none",
-    borderRadius: "14px",
-    padding: "14px 32px",
-    fontSize: "15px",
-    fontWeight: "700",
-    cursor: "pointer",
-    fontFamily: "'Poppins', sans-serif",
+    background: "#fff", color: "#e91e8c", border: "none",
+    borderRadius: "14px", padding: "14px 32px",
+    fontSize: "15px", fontWeight: "700",
+    cursor: "pointer", fontFamily: "'Poppins', sans-serif",
   },
-  // TESTIMONIALS
   testimonialsGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
@@ -790,92 +647,40 @@ const styles = {
   },
   testimonialCard: {
     background: "linear-gradient(135deg, #fff0f5, #fce4ec)",
-    borderRadius: "20px",
-    padding: "28px",
-    border: "1.5px solid #f8bbd0",
+    borderRadius: "20px", padding: "28px", border: "1.5px solid #f8bbd0",
   },
   testimonialStars: { fontSize: "16px", marginBottom: "12px" },
-  testimonialText: {
-    fontSize: "14px",
-    color: "#666",
-    lineHeight: "1.7",
-    marginBottom: "16px",
-  },
+  testimonialText: { fontSize: "14px", color: "#666", lineHeight: "1.7", marginBottom: "16px" },
   testimonialName: { fontSize: "13px", fontWeight: "600", color: "#e91e8c" },
-  // NEWSLETTER
   newsletter: {
-    background: "#fff5f8",
-    padding: "70px 60px",
-    textAlign: "center",
-    borderTop: "1.5px solid #fce4ec",
+    background: "#fff5f8", padding: "70px 60px",
+    textAlign: "center", borderTop: "1.5px solid #fce4ec",
   },
-  newsletterTitle: {
-    fontSize: "28px",
-    fontWeight: "700",
-    color: "#e91e8c",
-    marginBottom: "8px",
-  },
+  newsletterTitle: { fontSize: "28px", fontWeight: "700", color: "#e91e8c", marginBottom: "8px" },
   newsletterSub: { fontSize: "15px", color: "#aaa", marginBottom: "32px" },
-  newsletterForm: {
-    display: "flex",
-    gap: "12px",
-    justifyContent: "center",
-    flexWrap: "wrap",
-  },
+  newsletterForm: { display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" },
   newsletterInput: {
-    padding: "14px 20px",
-    borderRadius: "14px",
-    border: "1.5px solid #f8bbd0",
-    outline: "none",
-    fontSize: "14px",
-    fontFamily: "'Poppins', sans-serif",
-    background: "#fff",
-    width: "300px",
-    color: "#444",
+    padding: "14px 20px", borderRadius: "14px",
+    border: "1.5px solid #f8bbd0", outline: "none",
+    fontSize: "14px", fontFamily: "'Poppins', sans-serif",
+    background: "#fff", width: "300px", color: "#444",
   },
   newsletterBtn: {
     background: "linear-gradient(135deg, #f06292, #e91e8c)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "14px",
-    padding: "14px 28px",
-    fontSize: "14px",
-    fontWeight: "600",
-    cursor: "pointer",
-    fontFamily: "'Poppins', sans-serif",
+    color: "#fff", border: "none", borderRadius: "14px",
+    padding: "14px 28px", fontSize: "14px", fontWeight: "600",
+    cursor: "pointer", fontFamily: "'Poppins', sans-serif",
   },
-  // FOOTER
-  footer: {
-    background: "#2d2d2d",
-    padding: "60px 60px 0",
-    color: "#ccc",
-  },
+  footer: { background: "#2d2d2d", padding: "60px 60px 0", color: "#ccc" },
   footerTop: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-    gap: "40px",
-    paddingBottom: "48px",
-    borderBottom: "1px solid #444",
+    gap: "40px", paddingBottom: "48px", borderBottom: "1px solid #444",
   },
-  footerBrand: {
-    fontSize: "20px",
-    fontWeight: "700",
-    color: "#f48fb1",
-    marginBottom: "10px",
-  },
+  footerBrand: { fontSize: "20px", fontWeight: "700", color: "#f48fb1", marginBottom: "10px" },
   footerTagline: { fontSize: "13px", color: "#888", lineHeight: "1.6" },
   footerLinks: { display: "flex", flexDirection: "column", gap: "10px" },
-  footerLinkTitle: {
-    fontSize: "14px",
-    fontWeight: "600",
-    color: "#f48fb1",
-    marginBottom: "4px",
-  },
+  footerLinkTitle: { fontSize: "14px", fontWeight: "600", color: "#f48fb1", marginBottom: "4px" },
   footerLink: { fontSize: "13px", color: "#999", textDecoration: "none" },
-  footerBottom: {
-    textAlign: "center",
-    padding: "20px 0",
-    fontSize: "13px",
-    color: "#666",
-  },
+  footerBottom: { textAlign: "center", padding: "20px 0", fontSize: "13px", color: "#666" },
 };

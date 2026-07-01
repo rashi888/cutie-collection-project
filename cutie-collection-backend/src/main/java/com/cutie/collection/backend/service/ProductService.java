@@ -2,6 +2,9 @@ package com.cutie.collection.backend.service;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,6 +14,11 @@ import com.cutie.collection.backend.entity.Category;
 import com.cutie.collection.backend.entity.Product;
 import com.cutie.collection.backend.repository.CategoryRepository;
 import com.cutie.collection.backend.repository.ProductRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+
 
 @Service
 @Transactional
@@ -154,5 +162,37 @@ public class ProductService {
                 product.getUpdatedAt());
 
         return response;
+    }
+    
+    public Page<ProductResponse> getProducts(
+            int page,
+            int size,
+            String sortBy,
+            String direction) {
+
+        Sort sort = direction.equalsIgnoreCase("desc")
+                ? Sort.by(sortBy).descending()
+                : Sort.by(sortBy).ascending();
+
+        Pageable pageable =
+                PageRequest.of(
+                        page,
+                        size,
+                        sort);
+
+        return productRepository
+                .findAll(pageable)
+                .map(this::mapToResponse);
+    }
+    
+    public List<ProductResponse> searchProducts(
+            String keyword) {
+
+        return productRepository
+                .findByNameContainingIgnoreCase(
+                        keyword)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
     }
 }

@@ -21,7 +21,10 @@ export default function ProductCard({
   };
 
   return (
-    <div className="product-card" style={styles.card}>
+    <div className="product-card" style={styles.card} onClick={() =>
+    navigate(`/products/${product.id}`)
+}
+>
       {/* Image */}
       <div style={styles.imageBox}>
         {product.imageUrl ? (

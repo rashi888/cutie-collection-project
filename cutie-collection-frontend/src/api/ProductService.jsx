@@ -9,6 +9,7 @@ const ProductService = {
   create: (data) => api.post(BASE_URL, data),
   update: (id, data) => api.put(`${BASE_URL}/${id}`, data),
   delete: (id) => api.delete(`${BASE_URL}/${id}`),
+  getById: (id) => api.get(`/api/products/${id}`)
 };
 
 export default ProductService;

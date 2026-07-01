@@ -455,3 +455,10 @@ POST /api/wishlist/add/{productId}
 
 
 
+GET /api/products/paged?page=0&size=5&sortBy=price&direction=asc
+GET http://localhost:8080/api/products/paged?page=0&size=5&sortBy=price&direction=desc
+GET http://localhost:8080/api/products/paged?page=0&size=5&sortBy=name&direction=asc
+GET http://localhost:8080/api/products/paged?page=0&size=5&sortBy=stockQuantity&direction=desc
+
+GET http://localhost:8080/api/products/search?keyword=teddy
+

@@ -19,6 +19,8 @@ import CheckoutPage from "./pages/CheckoutPage";
 
 import WishlistPage from "./pages/WishlistPage";
 
+import ProductDetailsPage from "./pages/ProductDetailsPage";
+
 import "react-toastify/dist/ReactToastify.css";
 import "./styles/toast.css";
 
@@ -108,6 +110,15 @@ function App() {
           element={
             <ProtectedRoute>
               <WishlistPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/products/:id"
+          element={
+            <ProtectedRoute>
+              <ProductDetailsPage />
             </ProtectedRoute>
           }
         />
