@@ -2,13 +2,7 @@ package com.cutie.collection.backend.dto;
 
 import java.time.LocalDateTime;
 
-import lombok.*;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 public class CategoryResponse {
 
     private Long id;

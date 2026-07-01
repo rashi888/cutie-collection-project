@@ -26,12 +26,8 @@ public class WishlistController {
     }
 
     @GetMapping
-    public List<WishlistResponse>
-            getWishlist(
-                    Authentication authentication) {
-
-        return wishlistService
-                .getWishlist();
+    public List<WishlistResponse> getWishlist() {
+        return wishlistService.getWishlist();
     }
 
     @PostMapping("/add/{productId}")

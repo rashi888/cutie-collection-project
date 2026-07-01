@@ -49,21 +49,15 @@ public class SecurityConfig {
                         .requestMatchers("/api/user/**")
                         .authenticated()
 
-                        .requestMatchers("/api/auth/**").permitAll()
-
-//                        .requestMatchers("/api/wishlist/**")
-//                        .authenticated()
                         .requestMatchers("/api/wishlist/**")
-                        .permitAll()
-
-                        .requestMatchers("/api/order/**")
                         .authenticated()
+                       
                         
-
+                       .requestMatchers("/api/orders/**").authenticated()
+                       
                         .requestMatchers("/api/cart/**")
                         .authenticated()
 
-                        
                         .requestMatchers(HttpMethod.GET,
                                 "/api/categories/**").permitAll()
 
