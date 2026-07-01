@@ -14,22 +14,37 @@ export default function ProductPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
+  const [page, setPage] = useState(0);
+  const [size] = useState(8);
+
+  const [sortBy, setSortBy] = useState("id");
+  const [direction, setDirection] = useState("asc");
+
+  const [keyword, setKeyword] = useState("");
+
+  const [totalPages, setTotalPages] = useState(0);
+
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchAll();
-  }, []);
+    fetchProducts();
+  }, [page, sortBy, direction, keyword]);
 
-  const fetchAll = async () => {
+  const fetchProducts = async () => {
     try {
-      const [prodRes, catRes] = await Promise.all([
-        ProductService.getAll(),
-        CategoryService.getAll(),
-      ]);
-      setProducts(prodRes.data);
-      setCategories(catRes.data);
-    } catch (error) {
-      console.error(error);
+      setLoading(true);
+
+      const res = await ProductService.getPagedProducts(
+        page,
+        size,
+        sortBy,
+        direction,
+        keyword,
+      );
+
+      setProducts(res.data.content);
+      setTotalPages(res.data.totalPages);
+    } catch {
       toast.error("Failed to load products 💔");
     } finally {
       setLoading(false);
@@ -120,11 +135,28 @@ export default function ProductPage() {
             <input
               type="text"
               placeholder="Search products..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={styles.searchInput}
+              value={keyword}
+              onChange={(e) => {
+                setKeyword(e.target.value);
+                setPage(0); // reset page on search
+              }}
             />
           </div>
+          <select
+            value={`${sortBy}-${direction}`}
+            onChange={(e) => {
+              const [field, dir] = e.target.value.split("-");
+              setSortBy(field);
+              setDirection(dir);
+              setPage(0);
+            }}
+          >
+            <option value="price-asc">Price Low → High</option>
+            <option value="price-desc">Price High → Low</option>
+            <option value="name-asc">Name A-Z</option>
+            <option value="name-desc">Name Z-A</option>
+            <option value="stockQuantity-desc">Stock High → Low</option>
+          </select>
 
           <button
             onClick={() => {
@@ -184,7 +216,20 @@ export default function ProductPage() {
         {loading ? (
           <div style={styles.loadingBox}>
             <span style={{ fontSize: "48px" }}>🌸</span>
-            <p style={styles.loadingText}>Loading products...</p>
+            {/* <p style={styles.loadingText}>Loading products...</p> */}
+            <div style={{ display: "flex", gap: "20px" }}>
+              {[1, 2, 3, 4].map((_, i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: "250px",
+                    height: "300px",
+                    background: "#fce4ec",
+                    borderRadius: "20px",
+                  }}
+                />
+              ))}
+            </div>
           </div>
         ) : filtered.length === 0 ? (
           <div style={styles.emptyBox}>
@@ -204,6 +249,22 @@ export default function ProductPage() {
             ))}
           </div>
         )}
+      </div>
+      <div style={{ textAlign: "center", marginTop: "30px" }}>
+        <button disabled={page === 0} onClick={() => setPage(page - 1)}>
+          ⬅ Previous
+        </button>
+
+        <span style={{ margin: "0 15px" }}>
+          Page {page + 1} of {totalPages}
+        </span>
+
+        <button
+          disabled={page === totalPages - 1}
+          onClick={() => setPage(page + 1)}
+        >
+          Next ➡
+        </button>
       </div>
 
       {/* FOOTER */}

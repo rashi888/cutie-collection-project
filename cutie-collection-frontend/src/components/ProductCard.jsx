@@ -6,7 +6,6 @@ export default function ProductCard({
   onDelete,
   onAddToCart,
   onAddToWishlist,
-
 }) {
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
@@ -21,10 +20,11 @@ export default function ProductCard({
   };
 
   return (
-    <div className="product-card" style={styles.card} onClick={() =>
-    navigate(`/products/${product.id}`)
-}
->
+    <div
+      className="product-card"
+      style={styles.card}
+      onClick={() => navigate(`/products/${product.id}`)}
+    >
       {/* Image */}
       <div style={styles.imageBox}>
         {product.imageUrl ? (
@@ -58,55 +58,54 @@ export default function ProductCard({
       </div>
 
       {/* ✅ USER MODE */}
-{!onEdit && !onDelete && onAddToCart && (
-  <div style={{ display: "flex", gap: "10px", width: "100%" }}>
-    
-    <button
-      className="shop-btn"
-      style={
-        product.stockQuantity <= 0
-          ? {
-              ...styles.shopBtn,
-              opacity: 0.5,
-              cursor: "not-allowed",
+      {!onEdit && !onDelete && onAddToCart && (
+        <div style={{ display: "flex", gap: "10px", width: "100%" }}>
+          <button
+            className="shop-btn"
+            style={
+              product.stockQuantity <= 0
+                ? {
+                    ...styles.shopBtn,
+                    opacity: 0.5,
+                    cursor: "not-allowed",
+                  }
+                : added
+                  ? {
+                      ...styles.shopBtn,
+                      background: "linear-gradient(135deg, #66bb6a, #2e7d32)",
+                    }
+                  : styles.shopBtn
             }
-          : added
-          ? {
-              ...styles.shopBtn,
-              background:
-                "linear-gradient(135deg, #66bb6a, #2e7d32)",
-            }
-          : styles.shopBtn
-      }
-      onClick={handleAddToCart}
-      disabled={product.stockQuantity <= 0 || adding}
-    >
-      {adding
-        ? "Adding..."
-        : added
-        ? "✅ Added!"
-        : "🛒 Add To Cart"}
-    </button>
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddToCart(product);
+            }}
+            disabled={product.stockQuantity <= 0 || adding}
+          >
+            {adding ? "Adding..." : added ? "✅ Added!" : "🛒 Add To Cart"}
+          </button>
 
-    <button
-      style={{
-        background: "#fff5f8",
-        color: "#e91e8c",
-        border: "1.5px solid #f8bbd0",
-        borderRadius: "12px",
-        padding: "10px 14px",
-        fontSize: "13px",
-        fontWeight: "600",
-        cursor: "pointer",
-        fontFamily: "'Poppins', sans-serif",
-      }}
-      onClick={() => onAddToWishlist?.(product)}
-    >
-      💖 Wishlist
-    </button>
-
-  </div>
-)}
+          <button
+            style={{
+              background: "#fff5f8",
+              color: "#e91e8c",
+              border: "1.5px solid #f8bbd0",
+              borderRadius: "12px",
+              padding: "10px 14px",
+              fontSize: "13px",
+              fontWeight: "600",
+              cursor: "pointer",
+              fontFamily: "'Poppins', sans-serif",
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddToWishlist(product);
+            }}
+          >
+            💖 Wishlist
+          </button>
+        </div>
+      )}
 
       {/* ✅ ADMIN MODE */}
       {(onEdit || onDelete) && (

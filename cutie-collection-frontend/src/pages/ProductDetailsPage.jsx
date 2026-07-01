@@ -30,6 +30,25 @@ export default function ProductDetailPage() {
     fetchProduct();
   }, [id]);
 
+useEffect(() => {
+  const checkWishlist = async () => {
+    try {
+      const res = await WishlistService.getWishlist();
+
+      const exists = res.data.some(
+        (item) => item.productId === Number(id)
+      );
+
+      setWishlisted(exists);
+
+    } catch {
+      console.log("wishlist check failed");
+    }
+  };
+
+  checkWishlist();
+}, [id]);
+
   const handleAddToCart = async () => {
     if (adding || product.stockQuantity <= 0) return;
     try {
