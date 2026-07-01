@@ -1,0 +1,49 @@
+INSERT INTO categories (id, name)
+VALUES
+(1, 'Soft Toys'),
+(2, 'Mugs'),
+(3, 'Hair Accessories'),
+(4, 'Jewelry'),
+(5, 'Bags'),
+(6, 'Gift Items');
+
+------------------------------------------------------------------------------------------------
+
+INSERT INTO products
+(name, description, price, stock_quantity, image_url, category_id)
+VALUES
+('Cute Teddy Bear', 'Soft and fluffy teddy bear', 499.99, 20, 'teddy.jpg', 1),
+('Panda Plush', 'Cute panda soft toy', 699.99, 10, 'panda.jpg', 1),
+('Unicorn Doll', 'Magical unicorn plush', 899.99, 8, 'unicorn.jpg', 1),
+('Mini Bunny Toy', 'Cute bunny plush toy', 299.99, 25, 'bunny.jpg', 1),
+('Cute Cat Plush', 'Soft cat stuffed toy', 599.99, 15, 'cat.jpg', 1),
+
+('Cute Mug', 'Adorable coffee mug', 299.99, 30, 'mug.jpg', 2),
+('Love Mug', 'Gift mug for loved ones', 349.99, 20, 'love-mug.jpg', 2),
+('Tea Cup Set', 'Premium tea cup set', 499.99, 12, 'cup-set.jpg', 2),
+('Hot Chocolate Mug', 'Large ceramic mug', 399.99, 18, 'chocolate-mug.jpg', 2),
+('Coffee Lover Mug', 'Cute printed coffee mug', 449.99, 22, 'coffee-mug.jpg', 2),
+
+('Scrunchy Pack', 'Colorful hair scrunchies', 199.99, 50, 'scrunchy.jpg', 3),
+('Hair Clip Set', 'Stylish hair clips', 149.99, 60, 'clips.jpg', 3),
+('Cute Hair Band', 'Soft pink hair band', 99.99, 70, 'hair-band.jpg', 3),
+('Bow Hair Clips', 'Bow themed clips', 129.99, 55, 'bow.jpg', 3),
+('Pearl Hair Band', 'Elegant pearl headband', 249.99, 25, 'pearl-band.jpg', 3),
+
+('Necklace Set', 'Beautiful designer necklace', 799.99, 10, 'necklace.jpg', 4),
+('Earrings Pack', 'Trendy earrings collection', 499.99, 18, 'earrings.jpg', 4),
+('Bracelet', 'Elegant bracelet', 399.99, 22, 'bracelet.jpg', 4),
+('Charm Necklace', 'Cute charm necklace', 899.99, 14, 'charm.jpg', 4),
+('Pearl Earrings', 'Classic pearl earrings', 599.99, 15, 'pearl-earrings.jpg', 4),
+
+('Handbag', 'Trendy handbag', 1499.99, 12, 'handbag.jpg', 5),
+('Mini Backpack', 'Fashion backpack', 1199.99, 10, 'backpack.jpg', 5),
+('Wallet', 'Premium wallet', 699.99, 20, 'wallet.jpg', 5),
+('Sling Bag', 'Cute sling bag', 999.99, 16, 'sling.jpg', 5),
+('Travel Pouch', 'Multi-purpose travel pouch', 499.99, 35, 'pouch.jpg', 5),
+
+('Gift Box', 'Beautiful gift box', 399.99, 40, 'gift-box.jpg', 6),
+('Surprise Gift Combo', 'Special gift set', 1299.99, 8, 'gift-combo.jpg', 6),
+('Valentine Gift Set', 'Romantic gift collection', 1499.99, 6, 'valentine.jpg', 6),
+('Birthday Gift Hamper', 'Birthday celebration hamper', 999.99, 10, 'hamper.jpg', 6),
+('Anniversary Gift Pack', 'Anniversary surprise pack', 1799.99, 5, 'anniversary.jpg', 6);

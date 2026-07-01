@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useCallback, memo } from "react";
+import { useNavigate } from "react-router-dom";
 
-export default function ProductCard({
+const ProductCard = memo(function ProductCard({
   product,
   onEdit,
   onDelete,
@@ -8,117 +9,133 @@ export default function ProductCard({
   onAddToWishlist,
 }) {
   const [adding, setAdding] = useState(false);
-  const [added, setAdded] = useState(false);
+  const [added, setAdded]   = useState(false);
+  const navigate = useNavigate();
 
-  const handleAddToCart = async () => {
+  const isAdminMode = onEdit || onDelete;
+
+  const handleAddToCart = useCallback(async (e) => {
+    e.stopPropagation();
     if (adding || product.stockQuantity <= 0) return;
     setAdding(true);
     await onAddToCart(product);
     setAdding(false);
     setAdded(true);
-    setTimeout(() => setAdded(false), 1800);
-  };
+  }, [adding, product, onAddToCart]);
+
+  const handleWishlist = useCallback((e) => {
+    e.stopPropagation();
+    onAddToWishlist?.(product);
+  }, [product, onAddToWishlist]);
+
+  const handleGoToCart = useCallback((e) => {
+    e.stopPropagation();
+    navigate("/cart");
+  }, [navigate]);
+
+  const handleCardClick = useCallback(() => {
+    if (!isAdminMode) navigate(`/products/${product.id}`);
+  }, [isAdminMode, navigate, product.id]);
+
+  const outOfStock = product.stockQuantity <= 0;
 
   return (
     <div
       className="product-card"
-      style={styles.card}
-      onClick={() => navigate(`/products/${product.id}`)}
+      style={S.card}
+      onClick={handleCardClick}
     >
-      {/* Image */}
-      <div style={styles.imageBox}>
+      {/* ── Image ── */}
+      <div style={S.imageBox}>
         {product.imageUrl ? (
-          <img src={product.imageUrl} alt={product.name} style={styles.image} />
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            style={S.image}
+            loading="lazy"
+          />
         ) : (
-          <span style={styles.imagePlaceholder}>🛍️</span>
+          <span style={S.imagePlaceholder}>🛍️</span>
         )}
       </div>
 
-      {/* Category */}
+      {/* ── Category badge ── */}
       {product.categoryName && (
-        <span style={styles.categoryBadge}>{product.categoryName}</span>
+        <span style={S.categoryBadge}>{product.categoryName}</span>
       )}
 
-      {/* Name */}
-      <h3 style={styles.name}>{product.name}</h3>
+      {/* ── Name ── */}
+      <h3 style={S.name}>{product.name}</h3>
 
-      {/* Description */}
-      {product.description && <p style={styles.desc}>{product.description}</p>}
+      {/* ── Description ── */}
+      {product.description && (
+        <p style={S.desc}>{product.description}</p>
+      )}
 
-      {/* Price & Stock */}
-      <div style={styles.priceRow}>
-        <span style={styles.price}>₹{product.price}</span>
-        <span
-          style={product.stockQuantity > 0 ? styles.inStock : styles.outStock}
-        >
-          {product.stockQuantity > 0
-            ? `Stock: ${product.stockQuantity}`
-            : "Out of Stock"}
+      {/* ── Price & Stock ── */}
+      <div style={S.priceRow}>
+        <span style={S.price}>₹{product.price}</span>
+        <span style={outOfStock ? S.outStock : S.inStock}>
+          {outOfStock ? "Out of Stock" : `Stock: ${product.stockQuantity}`}
         </span>
       </div>
 
-      {/* ✅ USER MODE */}
-      {!onEdit && !onDelete && onAddToCart && (
-        <div style={{ display: "flex", gap: "10px", width: "100%" }}>
-          <button
-            className="shop-btn"
-            style={
-              product.stockQuantity <= 0
-                ? {
-                    ...styles.shopBtn,
-                    opacity: 0.5,
-                    cursor: "not-allowed",
-                  }
-                : added
-                  ? {
-                      ...styles.shopBtn,
-                      background: "linear-gradient(135deg, #66bb6a, #2e7d32)",
-                    }
-                  : styles.shopBtn
-            }
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddToCart(product);
-            }}
-            disabled={product.stockQuantity <= 0 || adding}
-          >
-            {adding ? "Adding..." : added ? "✅ Added!" : "🛒 Add To Cart"}
-          </button>
+      {/* ── USER MODE ── */}
+      {!isAdminMode && onAddToCart && (
+        <div style={S.btnRow}>
 
+          {/* Flipkart: Add to Cart → Go to Cart */}
+          {!added ? (
+            <button
+              className="shop-btn"
+              style={
+                outOfStock
+                  ? { ...S.addToCartBtn, opacity: 0.5, cursor: "not-allowed" }
+                  : adding
+                  ? { ...S.addToCartBtn, opacity: 0.75 }
+                  : S.addToCartBtn
+              }
+              onClick={handleAddToCart}
+              disabled={outOfStock || adding}
+            >
+              {adding ? "Adding... 🌸" : "🛒 Add to Cart"}
+            </button>
+          ) : (
+            <button
+              className="go-to-cart-btn"
+              style={S.goToCartBtn}
+              onClick={handleGoToCart}
+            >
+              ✅ Go to Cart →
+            </button>
+          )}
+
+          {/* Wishlist */}
           <button
-            style={{
-              background: "#fff5f8",
-              color: "#e91e8c",
-              border: "1.5px solid #f8bbd0",
-              borderRadius: "12px",
-              padding: "10px 14px",
-              fontSize: "13px",
-              fontWeight: "600",
-              cursor: "pointer",
-              fontFamily: "'Poppins', sans-serif",
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddToWishlist(product);
-            }}
+            className="wishlist-btn"
+            style={S.wishlistBtn}
+            onClick={handleWishlist}
           >
-            💖 Wishlist
+            💖
           </button>
         </div>
       )}
 
-      {/* ✅ ADMIN MODE */}
-      {(onEdit || onDelete) && (
-        <div style={styles.actions}>
+      {/* ── ADMIN MODE ── */}
+      {isAdminMode && (
+        <div style={S.actions}>
           {onEdit && (
-            <button style={styles.editBtn} onClick={() => onEdit(product)}>
+            <button
+              style={S.editBtn}
+              onClick={(e) => { e.stopPropagation(); onEdit(product); }}
+            >
               ✏️ Edit
             </button>
           )}
           {onDelete && (
             <button
-              style={styles.deleteBtn}
-              onClick={() => onDelete(product.id)}
+              style={S.deleteBtn}
+              onClick={(e) => { e.stopPropagation(); onDelete(product.id); }}
             >
               🗑️ Delete
             </button>
@@ -127,9 +144,12 @@ export default function ProductCard({
       )}
     </div>
   );
-}
+});
 
-const styles = {
+export default ProductCard;
+
+/* ─────────────────────────── STYLES ─────────────────────────── */
+const S = {
   card: {
     background: "rgba(255,255,255,0.95)",
     backdropFilter: "blur(20px)",
@@ -141,9 +161,11 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: "10px",
+    cursor: "pointer",
     transition: "transform 0.25s ease, box-shadow 0.25s ease",
     animation: "fadeInUp 0.4s ease forwards",
   },
+
   imageBox: {
     background: "linear-gradient(135deg, #fff0f5 0%, #fce4ec 100%)",
     borderRadius: "18px",
@@ -162,6 +184,7 @@ const styles = {
     borderRadius: "18px",
   },
   imagePlaceholder: { fontSize: "64px", lineHeight: 1 },
+
   categoryBadge: {
     background: "linear-gradient(135deg, #fff0f5, #fce4ec)",
     color: "#e91e8c",
@@ -173,6 +196,7 @@ const styles = {
     alignSelf: "flex-start",
     letterSpacing: "0.3px",
   },
+
   name: {
     fontSize: "16px",
     fontWeight: "700",
@@ -180,7 +204,18 @@ const styles = {
     margin: 0,
     lineHeight: "1.4",
   },
-  desc: { fontSize: "12px", color: "#f48fb1", lineHeight: "1.6", margin: 0 },
+  desc: {
+    fontSize: "12px",
+    color: "#f48fb1",
+    lineHeight: "1.6",
+    margin: 0,
+    // Clamp to 2 lines to keep card heights consistent
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden",
+  },
+
   priceRow: {
     display: "flex",
     justifyContent: "space-between",
@@ -191,23 +226,72 @@ const styles = {
   },
   price: { fontSize: "22px", fontWeight: "800", color: "#e91e8c" },
   inStock: {
-    fontSize: "11px",
-    fontWeight: "600",
-    color: "#2e7d32",
-    background: "#f0fff4",
-    border: "1px solid #c8e6c9",
-    borderRadius: "20px",
-    padding: "4px 12px",
+    fontSize: "11px", fontWeight: "600", color: "#2e7d32",
+    background: "#f0fff4", border: "1px solid #c8e6c9",
+    borderRadius: "20px", padding: "4px 12px",
   },
   outStock: {
-    fontSize: "11px",
-    fontWeight: "600",
-    color: "#c62828",
-    background: "#fff5f5",
-    border: "1px solid #ffcdd2",
-    borderRadius: "20px",
-    padding: "4px 12px",
+    fontSize: "11px", fontWeight: "600", color: "#c62828",
+    background: "#fff5f5", border: "1px solid #ffcdd2",
+    borderRadius: "20px", padding: "4px 12px",
   },
+
+  btnRow: {
+    display: "flex",
+    gap: "10px",
+    width: "100%",
+    marginTop: "4px",
+  },
+
+  // Pink — Add to Cart
+  addToCartBtn: {
+    flex: 1,
+    background: "linear-gradient(135deg, #f06292, #e91e8c)",
+    color: "#fff",
+    border: "none",
+    borderRadius: "14px",
+    padding: "13px",
+    fontSize: "14px",
+    fontWeight: "700",
+    cursor: "pointer",
+    fontFamily: "'Poppins', sans-serif",
+    boxShadow: "0 6px 20px rgba(233,30,140,0.3)",
+    letterSpacing: "0.3px",
+    transition: "transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease",
+  },
+
+  // Green — Go to Cart (Flipkart style)
+  goToCartBtn: {
+    flex: 1,
+    background: "linear-gradient(135deg, #43a047, #2e7d32)",
+    color: "#fff",
+    border: "none",
+    borderRadius: "14px",
+    padding: "13px",
+    fontSize: "14px",
+    fontWeight: "700",
+    cursor: "pointer",
+    fontFamily: "'Poppins', sans-serif",
+    boxShadow: "0 6px 20px rgba(46,125,50,0.35)",
+    letterSpacing: "0.3px",
+    transition: "transform 0.2s ease, box-shadow 0.2s ease",
+    animation: "fadeInUp 0.25s ease",
+  },
+
+  // Wishlist (heart only — compact)
+  wishlistBtn: {
+    background: "#fff5f8",
+    color: "#e91e8c",
+    border: "1.5px solid #f8bbd0",
+    borderRadius: "12px",
+    padding: "10px 14px",
+    fontSize: "16px",
+    cursor: "pointer",
+    fontFamily: "'Poppins', sans-serif",
+    transition: "background 0.2s, border-color 0.2s, transform 0.15s",
+    flexShrink: 0,
+  },
+
   actions: { display: "flex", gap: "8px", marginTop: "4px" },
   editBtn: {
     flex: 1,
@@ -234,21 +318,5 @@ const styles = {
     color: "#c2185b",
     fontFamily: "'Poppins', sans-serif",
     transition: "transform 0.15s",
-  },
-  shopBtn: {
-    background: "linear-gradient(135deg, #f06292, #e91e8c)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "14px",
-    padding: "13px",
-    fontSize: "14px",
-    fontWeight: "700",
-    cursor: "pointer",
-    fontFamily: "'Poppins', sans-serif",
-    boxShadow: "0 6px 20px rgba(233,30,140,0.3)",
-    marginTop: "4px",
-    letterSpacing: "0.3px",
-    transition:
-      "transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease",
   },
 };

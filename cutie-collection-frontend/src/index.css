@@ -43,3 +43,69 @@
 .shop-btn:active:not(:disabled) { transform: scale(0.97); }
 .qty-btn:hover  { background: #fce4ec !important; border-radius: 50%; }
 .checkout-btn:hover { animation: pulse 1s infinite; }
+
+
+/* ── Cutie Animations ── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes badgePop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.45); }
+  70%  { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 6px 20px rgba(233,30,140,0.3); }
+  50%       { box-shadow: 0 6px 28px rgba(233,30,140,0.55); }
+}
+
+.cart-item-enter { animation: slideIn 0.3s ease forwards; }
+.badge-pop       { animation: badgePop 0.4s cubic-bezier(0.36,0.07,0.19,0.97); }
+
+/* Product card */
+.product-card:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 16px 40px rgba(244,143,177,0.28) !important;
+}
+
+/* Add to Cart button */
+.shop-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(233,30,140,0.45) !important;
+}
+.shop-btn:active:not(:disabled) { transform: scale(0.97); }
+
+/* ✅ NEW — Go to Cart button */
+.go-to-cart-btn:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 10px 28px rgba(46,125,50,0.45) !important;
+}
+.go-to-cart-btn:active { transform: scale(0.97) !important; }
+
+/* ✅ NEW — Wishlist button */
+.wishlist-btn:hover {
+  background: #fce4ec !important;
+  border-color: #e91e8c !important;
+  transform: scale(1.1) !important;
+}
+
+/* Other */
+.cart-item-card:hover {
+  box-shadow: 0 8px 28px rgba(244,143,177,0.22) !important;
+  border-color: #f48fb1 !important;
+}
+.qty-btn:hover     { background: #fce4ec !important; border-radius: 50%; }
+.checkout-btn:hover { animation: pulse 1s infinite; }
