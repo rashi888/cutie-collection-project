@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 import CartService from "../api/CartService";
 import OrderService from "../api/OrderService";
 import CheckoutSummary from "../components/CheckoutSummary";
+import PaymentService from "../api/PaymentService";
 
 export default function CheckoutPage() {
   const [cartItems, setCartItems] = useState([]);
@@ -11,13 +12,24 @@ export default function CheckoutPage() {
   const [placing, setPlacing] = useState(false);
   const navigate = useNavigate();
 
+
+  const totalAmount = cartItems.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0,
+  );
+
   useEffect(() => {
     fetchCart();
   }, []);
 
+
+  
   const fetchCart = async () => {
     try {
       const res = await CartService.getCart();
+
+      console.log("Cart Data:", res.data);
+
       setCartItems(res.data);
     } catch {
       toast.error("Failed to load cart 💔");
@@ -43,9 +55,59 @@ export default function CheckoutPage() {
     }
   };
 
+  const handlePayment = async () => {
+    try {
+      console.log("Total Amount =", totalAmount);
+
+      const response = await PaymentService.createOrder(totalAmount);
+      console.log("Payment Response:", response.data);
+
+      const order = response.data;
+
+      const options = {
+        key: "rzp_test_T8TbbFa8piWh1l",
+
+        amount: order.amount,
+
+        currency: order.currency,
+
+        name: "Cutie Collection",
+
+        description: "Order Payment",
+
+        order_id: order.orderId,
+
+        handler: async function (paymentResponse) {
+          console.log("Payment Success:", paymentResponse);
+
+          toast.success("Payment Successful ✅");
+
+          await OrderService.placeOrder();
+
+          navigate("/orders");
+        },
+
+        prefill: {
+          name: "Rashi",
+        },
+
+        theme: {
+          color: "#e91e8c",
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+
+      razorpay.open();
+    } catch (error) {
+      console.error("Payment Error:", error);
+
+      toast.error("Payment Failed 💔");
+    }
+  };
+
   return (
     <div style={styles.page}>
-
       {/* NAVBAR */}
       <nav style={styles.navbar}>
         <div style={styles.navBrand}>
@@ -53,13 +115,24 @@ export default function CheckoutPage() {
           <span style={styles.navTitle}>Cutie Collection</span>
         </div>
         <div style={styles.navLinks}>
-          <a href="/" style={styles.navLink}>Home</a>
-          <a href="/products" style={styles.navLink}>Products</a>
-          <a href="/cart" style={styles.navLink}>🛒 Cart</a>
-          <a href="/orders" style={styles.navLink}>📦 Orders</a>
+          <a href="/" style={styles.navLink}>
+            Home
+          </a>
+          <a href="/products" style={styles.navLink}>
+            Products
+          </a>
+          <a href="/cart" style={styles.navLink}>
+            🛒 Cart
+          </a>
+          <a href="/orders" style={styles.navLink}>
+            📦 Orders
+          </a>
         </div>
         <button
-          onClick={() => { localStorage.removeItem("token"); navigate("/login"); }}
+          onClick={() => {
+            localStorage.removeItem("token");
+            navigate("/login");
+          }}
           style={styles.logoutBtn}
         >
           🌸 Logout
@@ -71,7 +144,10 @@ export default function CheckoutPage() {
         <div style={styles.blob1} />
         <div style={styles.blob2} />
         <div style={styles.headerContent}>
-          <span style={styles.badge}>💳 Checkout</span>
+          {/* <span style={styles.badge}>💳 Checkout</span> */}
+          {/* <button style={styles.placeOrderBtn} onClick={handlePayment}>
+            💳 Pay Now
+          </button> */}
           <h1 style={styles.title}>
             Almost <span style={styles.accent}>There! 🎀</span>
           </h1>
@@ -90,13 +166,15 @@ export default function CheckoutPage() {
             <span style={{ fontSize: "64px" }}>🛒</span>
             <p style={styles.emptyText}>Nothing to checkout!</p>
             <p style={styles.emptySub}>Add some cute items first 💕</p>
-            <button style={styles.shopBtn} onClick={() => navigate("/products")}>
+            <button
+              style={styles.shopBtn}
+              onClick={() => navigate("/products")}
+            >
               Shop Now 🌸
             </button>
           </div>
         ) : (
           <div style={styles.layout}>
-
             {/* LEFT — Delivery Info */}
             <div style={styles.leftCol}>
               <div style={styles.infoCard}>
@@ -111,7 +189,13 @@ export default function CheckoutPage() {
                 </div>
                 <div style={styles.infoRow}>
                   <span style={styles.infoLabel}>Shipping Fee</span>
-                  <span style={{ ...styles.infoValue, color: "#2e7d32", fontWeight: "700" }}>
+                  <span
+                    style={{
+                      ...styles.infoValue,
+                      color: "#2e7d32",
+                      fontWeight: "700",
+                    }}
+                  >
                     FREE 🎀
                   </span>
                 </div>
@@ -131,7 +215,7 @@ export default function CheckoutPage() {
             <div style={styles.rightCol}>
               <CheckoutSummary
                 cartItems={cartItems}
-                onPlaceOrder={handlePlaceOrder}
+                onPlaceOrder={handlePayment}
                 placing={placing}
               />
             </div>
@@ -148,98 +232,189 @@ export default function CheckoutPage() {
 }
 
 const styles = {
-  page: { fontFamily: "'Poppins', sans-serif", background: "#fff", minHeight: "100vh" },
+  page: {
+    fontFamily: "'Poppins', sans-serif",
+    background: "#fff",
+    minHeight: "100vh",
+  },
 
   navbar: {
-    display: "flex", alignItems: "center", justifyContent: "space-between",
-    padding: "16px 60px", background: "rgba(255,255,255,0.95)",
-    backdropFilter: "blur(10px)", borderBottom: "1.5px solid #fce4ec",
-    position: "sticky", top: 0, zIndex: 100, flexWrap: "wrap", gap: "12px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "16px 60px",
+    background: "rgba(255,255,255,0.95)",
+    backdropFilter: "blur(10px)",
+    borderBottom: "1.5px solid #fce4ec",
+    position: "sticky",
+    top: 0,
+    zIndex: 100,
+    flexWrap: "wrap",
+    gap: "12px",
   },
   navBrand: { display: "flex", alignItems: "center", gap: "10px" },
   navLogo: { fontSize: "28px" },
   navTitle: { fontSize: "20px", fontWeight: "700", color: "#e91e8c" },
   navLinks: { display: "flex", gap: "28px" },
-  navLink: { textDecoration: "none", color: "#c2185b", fontSize: "14px", fontWeight: "500" },
+  navLink: {
+    textDecoration: "none",
+    color: "#c2185b",
+    fontSize: "14px",
+    fontWeight: "500",
+  },
   logoutBtn: {
-    background: "linear-gradient(135deg, #f06292, #e91e8c)", color: "#fff",
-    border: "none", borderRadius: "20px", padding: "8px 18px", fontSize: "13px",
-    fontWeight: "600", cursor: "pointer", fontFamily: "'Poppins', sans-serif",
+    background: "linear-gradient(135deg, #f06292, #e91e8c)",
+    color: "#fff",
+    border: "none",
+    borderRadius: "20px",
+    padding: "8px 18px",
+    fontSize: "13px",
+    fontWeight: "600",
+    cursor: "pointer",
+    fontFamily: "'Poppins', sans-serif",
     boxShadow: "0 4px 12px rgba(233,30,140,0.25)",
   },
 
   header: {
     background: "linear-gradient(135deg, #fff0f5 0%, #fce4ec 100%)",
-    padding: "60px 60px 50px", position: "relative", overflow: "hidden",
+    padding: "60px 60px 50px",
+    position: "relative",
+    overflow: "hidden",
   },
   blob1: {
-    position: "absolute", top: "-80px", right: "-60px", width: "280px", height: "280px",
-    background: "radial-gradient(circle, #f8bbd0, #f48fb1)", borderRadius: "50%",
-    opacity: 0.25, filter: "blur(50px)",
+    position: "absolute",
+    top: "-80px",
+    right: "-60px",
+    width: "280px",
+    height: "280px",
+    background: "radial-gradient(circle, #f8bbd0, #f48fb1)",
+    borderRadius: "50%",
+    opacity: 0.25,
+    filter: "blur(50px)",
   },
   blob2: {
-    position: "absolute", bottom: "-60px", left: "-60px", width: "240px", height: "240px",
-    background: "radial-gradient(circle, #fce4ec, #f8bbd0)", borderRadius: "50%",
-    opacity: 0.3, filter: "blur(40px)",
+    position: "absolute",
+    bottom: "-60px",
+    left: "-60px",
+    width: "240px",
+    height: "240px",
+    background: "radial-gradient(circle, #fce4ec, #f8bbd0)",
+    borderRadius: "50%",
+    opacity: 0.3,
+    filter: "blur(40px)",
   },
   headerContent: { position: "relative", zIndex: 1 },
   badge: {
-    background: "#fff", color: "#e91e8c", border: "1.5px solid #f8bbd0",
-    borderRadius: "20px", padding: "6px 16px", fontSize: "13px",
-    fontWeight: "600", display: "inline-block", marginBottom: "16px",
+    background: "#fff",
+    color: "#e91e8c",
+    border: "1.5px solid #f8bbd0",
+    borderRadius: "20px",
+    padding: "6px 16px",
+    fontSize: "13px",
+    fontWeight: "600",
+    display: "inline-block",
+    marginBottom: "16px",
   },
-  title: { fontSize: "40px", fontWeight: "800", color: "#2d2d2d", marginBottom: "10px" },
+  title: {
+    fontSize: "40px",
+    fontWeight: "800",
+    color: "#2d2d2d",
+    marginBottom: "10px",
+  },
   accent: { color: "#e91e8c" },
   sub: { fontSize: "15px", color: "#888" },
 
   container: { padding: "40px 60px", maxWidth: "1200px", margin: "0 auto" },
 
-  layout: { display: "grid", gridTemplateColumns: "1fr 360px", gap: "32px", alignItems: "flex-start" },
+  layout: {
+    display: "grid",
+    gridTemplateColumns: "1fr 360px",
+    gap: "32px",
+    alignItems: "flex-start",
+  },
   leftCol: { display: "flex", flexDirection: "column", gap: "24px" },
   rightCol: {},
 
   infoCard: {
-    background: "rgba(255,255,255,0.95)", backdropFilter: "blur(20px)",
-    borderRadius: "24px", padding: "28px",
-    border: "1.5px solid #f8bbd0", boxShadow: "0 8px 32px rgba(244,143,177,0.12)",
-    display: "flex", flexDirection: "column", gap: "16px",
+    background: "rgba(255,255,255,0.95)",
+    backdropFilter: "blur(20px)",
+    borderRadius: "24px",
+    padding: "28px",
+    border: "1.5px solid #f8bbd0",
+    boxShadow: "0 8px 32px rgba(244,143,177,0.12)",
+    display: "flex",
+    flexDirection: "column",
+    gap: "16px",
     fontFamily: "'Poppins', sans-serif",
   },
-  sectionTitle: { fontSize: "18px", fontWeight: "700", color: "#333", margin: 0 },
-  infoRow: { display: "flex", justifyContent: "space-between", alignItems: "center" },
+  sectionTitle: {
+    fontSize: "18px",
+    fontWeight: "700",
+    color: "#333",
+    margin: 0,
+  },
+  infoRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   infoLabel: { fontSize: "14px", color: "#888" },
   infoValue: { fontSize: "14px", fontWeight: "600", color: "#333" },
 
   paymentOption: { display: "flex", alignItems: "center", gap: "12px" },
   paymentDot: {
-    width: "14px", height: "14px", borderRadius: "50%",
+    width: "14px",
+    height: "14px",
+    borderRadius: "50%",
     background: "linear-gradient(135deg, #f06292, #e91e8c)",
     flexShrink: 0,
   },
   paymentLabel: { fontSize: "14px", fontWeight: "600", color: "#333", flex: 1 },
   paymentBadge: {
-    background: "#e8f5e9", color: "#2e7d32", border: "1px solid #c8e6c9",
-    borderRadius: "20px", padding: "3px 12px", fontSize: "11px", fontWeight: "600",
+    background: "#e8f5e9",
+    color: "#2e7d32",
+    border: "1px solid #c8e6c9",
+    borderRadius: "20px",
+    padding: "3px 12px",
+    fontSize: "11px",
+    fontWeight: "600",
   },
 
   loadingBox: { textAlign: "center", padding: "80px 20px" },
   loadingText: { fontSize: "16px", color: "#f48fb1", marginTop: "16px" },
   emptyBox: {
-    textAlign: "center", padding: "60px 20px",
+    textAlign: "center",
+    padding: "60px 20px",
     background: "linear-gradient(135deg, #fff0f5, #fce4ec)",
-    borderRadius: "24px", border: "1.5px solid #f8bbd0",
+    borderRadius: "24px",
+    border: "1.5px solid #f8bbd0",
   },
-  emptyText: { fontSize: "20px", fontWeight: "700", color: "#e91e8c", marginTop: "16px" },
+  emptyText: {
+    fontSize: "20px",
+    fontWeight: "700",
+    color: "#e91e8c",
+    marginTop: "16px",
+  },
   emptySub: { fontSize: "14px", color: "#f48fb1", marginBottom: "24px" },
   shopBtn: {
-    background: "linear-gradient(135deg, #f06292, #e91e8c)", color: "#fff",
-    border: "none", borderRadius: "14px", padding: "13px 28px", fontSize: "14px",
-    fontWeight: "600", cursor: "pointer", fontFamily: "'Poppins', sans-serif",
+    background: "linear-gradient(135deg, #f06292, #e91e8c)",
+    color: "#fff",
+    border: "none",
+    borderRadius: "14px",
+    padding: "13px 28px",
+    fontSize: "14px",
+    fontWeight: "600",
+    cursor: "pointer",
+    fontFamily: "'Poppins', sans-serif",
     boxShadow: "0 6px 20px rgba(233,30,140,0.3)",
   },
 
   footer: {
-    background: "#2d2d2d", textAlign: "center",
-    padding: "24px", fontSize: "13px", color: "#666", marginTop: "60px",
+    background: "#2d2d2d",
+    textAlign: "center",
+    padding: "24px",
+    fontSize: "13px",
+    color: "#666",
+    marginTop: "60px",
   },
 };

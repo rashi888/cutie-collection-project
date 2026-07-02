@@ -2,6 +2,7 @@ export default function CheckoutSummary({ cartItems, onPlaceOrder, placing }) {
   const total = cartItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const totalItems = cartItems.reduce((sum, i) => sum + i.quantity, 0);
 
+  
   return (
     <div style={styles.card}>
       <h2 style={styles.title}>Order Summary 🌸</h2>
@@ -54,7 +55,7 @@ export default function CheckoutSummary({ cartItems, onPlaceOrder, placing }) {
         onClick={onPlaceOrder}
         disabled={placing}
       >
-        {placing ? "Placing Order..." : "✅ Place Order 💕"}
+        {placing ? "Placing Order..." : "💳 Pay Now 💕"}
       </button>
 
       {/* Promo note */}

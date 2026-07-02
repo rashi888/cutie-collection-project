@@ -9,29 +9,38 @@ const ProductCard = memo(function ProductCard({
   onAddToWishlist,
 }) {
   const [adding, setAdding] = useState(false);
-  const [added, setAdded]   = useState(false);
+  const [added, setAdded] = useState(false);
   const navigate = useNavigate();
 
   const isAdminMode = onEdit || onDelete;
 
-  const handleAddToCart = useCallback(async (e) => {
-    e.stopPropagation();
-    if (adding || product.stockQuantity <= 0) return;
-    setAdding(true);
-    await onAddToCart(product);
-    setAdding(false);
-    setAdded(true);
-  }, [adding, product, onAddToCart]);
+  const handleAddToCart = useCallback(
+    async (e) => {
+      e.stopPropagation();
+      if (adding || product.stockQuantity <= 0) return;
+      setAdding(true);
+      await onAddToCart(product);
+      setAdding(false);
+      setAdded(true);
+    },
+    [adding, product, onAddToCart],
+  );
 
-  const handleWishlist = useCallback((e) => {
-    e.stopPropagation();
-    onAddToWishlist?.(product);
-  }, [product, onAddToWishlist]);
+  const handleWishlist = useCallback(
+    (e) => {
+      e.stopPropagation();
+      onAddToWishlist?.(product);
+    },
+    [product, onAddToWishlist],
+  );
 
-  const handleGoToCart = useCallback((e) => {
-    e.stopPropagation();
-    navigate("/cart");
-  }, [navigate]);
+  const handleGoToCart = useCallback(
+    (e) => {
+      e.stopPropagation();
+      navigate("/cart");
+    },
+    [navigate],
+  );
 
   const handleCardClick = useCallback(() => {
     if (!isAdminMode) navigate(`/products/${product.id}`);
@@ -40,18 +49,20 @@ const ProductCard = memo(function ProductCard({
   const outOfStock = product.stockQuantity <= 0;
 
   return (
-    <div
-      className="product-card"
-      style={S.card}
-      onClick={handleCardClick}
-    >
+    <div className="product-card" style={S.card} onClick={handleCardClick}>
       {/* ── Image ── */}
       <div style={S.imageBox}>
         {product.imageUrl ? (
           <img
             src={product.imageUrl}
             alt={product.name}
-            style={S.image}
+            style={{
+              width: "120px",
+              height: "120px",
+              objectFit: "cover",
+              borderRadius: "12px",
+            }}
+            // style={S.image}
             loading="lazy"
           />
         ) : (
@@ -68,9 +79,7 @@ const ProductCard = memo(function ProductCard({
       <h3 style={S.name}>{product.name}</h3>
 
       {/* ── Description ── */}
-      {product.description && (
-        <p style={S.desc}>{product.description}</p>
-      )}
+      {product.description && <p style={S.desc}>{product.description}</p>}
 
       {/* ── Price & Stock ── */}
       <div style={S.priceRow}>
@@ -83,7 +92,6 @@ const ProductCard = memo(function ProductCard({
       {/* ── USER MODE ── */}
       {!isAdminMode && onAddToCart && (
         <div style={S.btnRow}>
-
           {/* Flipkart: Add to Cart → Go to Cart */}
           {!added ? (
             <button
@@ -92,8 +100,8 @@ const ProductCard = memo(function ProductCard({
                 outOfStock
                   ? { ...S.addToCartBtn, opacity: 0.5, cursor: "not-allowed" }
                   : adding
-                  ? { ...S.addToCartBtn, opacity: 0.75 }
-                  : S.addToCartBtn
+                    ? { ...S.addToCartBtn, opacity: 0.75 }
+                    : S.addToCartBtn
               }
               onClick={handleAddToCart}
               disabled={outOfStock || adding}
@@ -127,7 +135,10 @@ const ProductCard = memo(function ProductCard({
           {onEdit && (
             <button
               style={S.editBtn}
-              onClick={(e) => { e.stopPropagation(); onEdit(product); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(product);
+              }}
             >
               ✏️ Edit
             </button>
@@ -135,7 +146,10 @@ const ProductCard = memo(function ProductCard({
           {onDelete && (
             <button
               style={S.deleteBtn}
-              onClick={(e) => { e.stopPropagation(); onDelete(product.id); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(product.id);
+              }}
             >
               🗑️ Delete
             </button>
@@ -226,14 +240,22 @@ const S = {
   },
   price: { fontSize: "22px", fontWeight: "800", color: "#e91e8c" },
   inStock: {
-    fontSize: "11px", fontWeight: "600", color: "#2e7d32",
-    background: "#f0fff4", border: "1px solid #c8e6c9",
-    borderRadius: "20px", padding: "4px 12px",
+    fontSize: "11px",
+    fontWeight: "600",
+    color: "#2e7d32",
+    background: "#f0fff4",
+    border: "1px solid #c8e6c9",
+    borderRadius: "20px",
+    padding: "4px 12px",
   },
   outStock: {
-    fontSize: "11px", fontWeight: "600", color: "#c62828",
-    background: "#fff5f5", border: "1px solid #ffcdd2",
-    borderRadius: "20px", padding: "4px 12px",
+    fontSize: "11px",
+    fontWeight: "600",
+    color: "#c62828",
+    background: "#fff5f5",
+    border: "1px solid #ffcdd2",
+    borderRadius: "20px",
+    padding: "4px 12px",
   },
 
   btnRow: {
@@ -257,7 +279,8 @@ const S = {
     fontFamily: "'Poppins', sans-serif",
     boxShadow: "0 6px 20px rgba(233,30,140,0.3)",
     letterSpacing: "0.3px",
-    transition: "transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease",
+    transition:
+      "transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease",
   },
 
   // Green — Go to Cart (Flipkart style)

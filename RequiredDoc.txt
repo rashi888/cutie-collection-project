@@ -1,6 +1,13 @@
+Using RazorPay for payment, 129 idmail, pan card details
 user1
 user1@gmail.com
 123456
+
+
+
+API  Key id - rzp_test_T8TbbFa8piWh1l
+Secret Key: zTCySSHrcy6d5IZm1AN8Ugsu
+
 
 
 

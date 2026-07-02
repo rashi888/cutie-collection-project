@@ -36,18 +36,24 @@ public class JwtAuthenticationFilter
     protected boolean shouldNotFilter(
             HttpServletRequest request) {
 
-        String path =
-                request.getServletPath();
+        String path = request.getServletPath();
 
-        return path.startsWith("/api/auth/");
+        return path.startsWith("/api/auth/")
+                || path.startsWith("/api/payments/");
     }
-
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,
             HttpServletResponse response,
             FilterChain filterChain)
             throws ServletException, IOException {
+    	
+    	String path = request.getServletPath();
+
+    	if (path.startsWith("/api/payments")) {
+    	    filterChain.doFilter(request, response);
+    	    return;
+    	}
 
         final String authHeader =
                 request.getHeader("Authorization");
