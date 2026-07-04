@@ -56,6 +56,7 @@ public class OrderService {
 
         order.setUser(user);
         order.setOrderStatus("PENDING");
+        order.setPaymentStatus("PAID");
 
         List<OrderItem> orderItems =
                 new ArrayList<>();
@@ -153,7 +154,20 @@ public class OrderService {
 
         return mapToResponse(updatedOrder);
     }
+    public void updateOrderStatus(
+            Long orderId,
+            String status) {
 
+        Order order = orderRepository
+                .findById(orderId)
+                .orElseThrow(() ->
+                        new RuntimeException("Order not found"));
+
+        order.setOrderStatus(status);
+
+        orderRepository.save(order);
+    }
+    
     private OrderResponse mapToResponse(
             Order order) {
 

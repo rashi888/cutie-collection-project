@@ -11,7 +11,9 @@ const statusStyles = {
 
 export default function OrderCard({ order, onCancel }) {
   const [expanded, setExpanded] = useState(false);
-  const st = statusStyles[order.status] || statusStyles.PENDING;
+  const st =
+  statusStyles[order.orderStatus] ||
+  statusStyles.PENDING;
   const total = order.items?.reduce((s, i) => s + i.price * i.quantity, 0) || order.totalAmount || 0;
 
   return (
@@ -30,11 +32,38 @@ export default function OrderCard({ order, onCancel }) {
         </div>
 
         <div style={styles.headerRight}>
-          <span style={{ ...styles.statusBadge, background: st.bg, color: st.color, border: `1px solid ${st.border}` }}>
-            {st.label}
-          </span>
-          <p style={styles.totalAmt}>₹{Number(total).toFixed(2)}</p>
-        </div>
+  
+  <span
+    style={{
+      background: "#ffe4ec",
+      color: "#d63384",
+      border: "1px solid #f8bbd0",
+      borderRadius: "20px",
+      padding: "4px 14px",
+      fontSize: "12px",
+      fontWeight: "700",
+      marginBottom: "4px",
+    }}
+  >
+    Payment: ✅ {order.paymentStatus || "PAID"}
+  </span>
+
+  <span
+    style={{
+      ...styles.statusBadge,
+      background: st.bg,
+      color: st.color,
+      border: `1px solid ${st.border}`,
+    }}
+  >
+   Order: {st.label}
+  </span>
+
+  <p style={styles.totalAmt}>
+    ₹{Number(total).toFixed(2)}
+  </p>
+
+</div>
       </div>
 
       {/* Items preview / expanded */}
@@ -55,7 +84,7 @@ export default function OrderCard({ order, onCancel }) {
       )}
 
       {/* Cancel button */}
-      {(order.status === "PENDING" || order.status === "CONFIRMED") && onCancel && (
+      {(order.orderStatus  === "PENDING" || order.orderStatus  === "CONFIRMED") && onCancel && (
         <div style={styles.footer}>
           <button style={styles.cancelBtn} onClick={() => onCancel(order.id)}>
             ❌ Cancel Order

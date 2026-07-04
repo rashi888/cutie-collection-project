@@ -40,6 +40,11 @@ public class Order {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+    
+    @Column(
+            name = "payment_status",
+            nullable = false)
+    private String paymentStatus;
 
     @PrePersist
     public void prePersist() {
@@ -113,5 +118,14 @@ public class Order {
 	public void setUpdatedAt(LocalDateTime updatedAt) {
 		this.updatedAt = updatedAt;
 	}
+
+	public String getPaymentStatus() {
+		return paymentStatus;
+	}
+
+	public void setPaymentStatus(String paymentStatus) {
+		this.paymentStatus = paymentStatus;
+	}
     
+	
 }

@@ -89,7 +89,7 @@ export default function OrdersPage() {
               <span style={styles.statEmoji}>✅</span>
               <div>
                 <div style={styles.statNum}>
-                  {orders.filter((o) => o.status === "DELIVERED").length}
+                  {orders.filter((o) => o.orderStatus === "DELIVERED").length}
                 </div>
                 <div style={styles.statLabel}>Delivered</div>
               </div>
@@ -98,7 +98,7 @@ export default function OrdersPage() {
               <span style={styles.statEmoji}>⏳</span>
               <div>
                 <div style={styles.statNum}>
-                  {orders.filter((o) => o.status === "PENDING" || o.status === "CONFIRMED").length}
+                  {orders.filter((o) => o.orderStatus === "PENDING" || o.orderStatus === "CONFIRMED").length}
                 </div>
                 <div style={styles.statLabel}>Active</div>
               </div>
@@ -129,6 +129,7 @@ export default function OrdersPage() {
                 order={order}
                 onCancel={handleCancel}
               />
+              
             ))}
           </div>
         )}

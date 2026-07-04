@@ -51,7 +51,10 @@ public class SecurityConfig {
 
                         .requestMatchers("/api/wishlist/**")
                         .authenticated()
-                       
+                        
+                        .requestMatchers(HttpMethod.PUT,
+                                "/api/orders/*/status")
+                        .permitAll()
                         
                        .requestMatchers("/api/orders/**").authenticated()
                        
