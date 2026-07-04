@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.cutie.collection.backend.dto.ProductRequest;
 import com.cutie.collection.backend.dto.ProductResponse;
+import com.cutie.collection.backend.entity.Product;
 import com.cutie.collection.backend.service.ProductService;
 
 import jakarta.validation.Valid;
@@ -58,11 +59,11 @@ public class ProductController {
 
     // GET PRODUCT BY ID
     @GetMapping("/{id}")
-    public ResponseEntity<ProductResponse>
-            getProductById(@PathVariable Long id) {
+    public ResponseEntity<ProductResponse> getProductById(
+            @PathVariable Long id) {
 
         return ResponseEntity.ok(
-                productService.getProductById(id));
+                productService.getProductResponseById(id));
     }
 
     // UPDATE PRODUCT

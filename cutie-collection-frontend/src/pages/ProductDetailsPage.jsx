@@ -58,6 +58,35 @@ export default function ProductDetailPage() {
     return () => { cancelled = true; };
   }, [id]);
 
+  
+ useEffect(() => {
+    loadProduct();
+  }, []);
+
+const loadProduct = async () => {
+  try {
+
+    console.log("ID = ", id);
+
+    const res =
+      await ProductService.getProductById(id);
+
+    console.log("PRODUCT = ", res.data);
+
+    setProduct(res.data);
+
+  } catch (error) {
+
+    console.log("ERROR");
+    console.log(error);
+
+    console.log(error.response);
+    console.log(error.response?.data);
+
+  }
+};
+
+
   /* ── Handlers (memoized) ── */
   const handleAddToCart = useCallback(async () => {
     if (adding || !product || product.stockQuantity <= 0) return;

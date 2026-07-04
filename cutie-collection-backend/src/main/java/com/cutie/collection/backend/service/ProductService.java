@@ -75,13 +75,19 @@ public class ProductService {
     }
 
     // GET PRODUCT BY ID
-    public ProductResponse getProductById(Long id) {
+    public ProductResponse getProductResponseById(
+            Long id) {
 
-        Product product = findProductById(id);
+        Product product =
+                productRepository
+                        .findById(id)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Product not found"));
 
         return mapToResponse(product);
     }
-
+    
     // UPDATE PRODUCT
     public ProductResponse updateProduct(
             Long id,

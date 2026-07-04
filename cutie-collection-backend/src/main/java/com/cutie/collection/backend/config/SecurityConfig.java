@@ -56,6 +56,10 @@ public class SecurityConfig {
                                 "/api/orders/*/status")
                         .permitAll()
                         
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/products/**")
+                        .permitAll()
+                        
                        .requestMatchers("/api/orders/**").authenticated()
                        
                         .requestMatchers("/api/cart/**")

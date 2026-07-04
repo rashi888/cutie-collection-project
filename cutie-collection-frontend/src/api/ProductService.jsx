@@ -17,6 +17,13 @@ const ProductService = {
   // ✅ Keyword search — uses separate /search endpoint
   searchByKeyword:   (keyword) =>
     api.get(`${BASE_URL}/search?keyword=${encodeURIComponent(keyword)}`),
-};
 
+
+getProductById(id) {
+  return axios.get(
+    `${API_BASE_URL}/products/${id}`
+  );
+}
+
+};
 export default ProductService;
