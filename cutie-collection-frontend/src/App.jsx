@@ -20,6 +20,7 @@ import CheckoutPage from "./pages/CheckoutPage";
 import WishlistPage from "./pages/WishlistPage";
 
 import ProductDetailsPage from "./pages/ProductDetailsPage";
+import PaymentHistoryPage from "./pages/PaymentHistoryPage";
 
 import "react-toastify/dist/ReactToastify.css";
 import "./styles/toast.css";
@@ -122,6 +123,8 @@ function App() {
             </ProtectedRoute>
           }
         />
+
+        <Route path="/payments" element={<PaymentHistoryPage />} />
       </Routes>
 
       <ToastContainer position="top-right" autoClose={3000} />

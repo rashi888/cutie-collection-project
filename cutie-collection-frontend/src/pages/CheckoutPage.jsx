@@ -12,7 +12,6 @@ export default function CheckoutPage() {
   const [placing, setPlacing] = useState(false);
   const navigate = useNavigate();
 
-
   const totalAmount = cartItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0,
@@ -22,8 +21,6 @@ export default function CheckoutPage() {
     fetchCart();
   }, []);
 
-
-  
   const fetchCart = async () => {
     try {
       const res = await CartService.getCart();
@@ -77,15 +74,39 @@ export default function CheckoutPage() {
 
         order_id: order.orderId,
 
-        handler: async function (paymentResponse) {
-          console.log("Payment Success:", paymentResponse);
+       handler: async function (paymentResponse) {
 
-          toast.success("Payment Successful ✅");
+  try {
 
-          await OrderService.placeOrder();
+    console.log("Payment Success:", paymentResponse);
 
-          navigate("/orders");
-        },
+    await PaymentService.savePayment({
+
+      razorpayPaymentId:
+        paymentResponse.razorpay_payment_id,
+
+      razorpayOrderId:
+        paymentResponse.razorpay_order_id,
+
+      amount: totalAmount
+
+    });
+
+    await OrderService.placeOrder();
+
+    toast.success("Payment Successful ✅");
+
+    navigate("/orders");
+
+  } catch (error) {
+
+    console.error(error);
+
+    toast.error(
+      "Payment saved failed 💔"
+    );
+  }
+},
 
         prefill: {
           name: "Rashi",

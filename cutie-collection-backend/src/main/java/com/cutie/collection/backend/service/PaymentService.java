@@ -61,6 +61,8 @@ public class PaymentService {
     public void savePayment(
             PaymentSuccessRequest request) {
 
+        System.out.println("PAYMENT SAVE API HIT");
+
         Payment payment = new Payment();
 
         payment.setRazorpayPaymentId(
@@ -78,6 +80,21 @@ public class PaymentService {
                 LocalDateTime.now());
 
         paymentRepository.save(payment);
+
+        System.out.println("PAYMENT SAVED TO DB");
     }
+    
+    public java.util.List<Payment> getAllPayments() {
+
+        return paymentRepository.findAll()
+                .stream()
+                .sorted((p1, p2) ->
+                        p2.getPaymentDate()
+                          .compareTo(
+                                  p1.getPaymentDate()))
+                .toList();
+    }
+    
+    
 
 }

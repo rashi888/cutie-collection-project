@@ -51,6 +51,7 @@ export default function OrdersPage() {
           <a href="/orders" style={{ ...styles.navLink, color: "#e91e8c", fontWeight: "700" }}>
             📦 Orders
           </a>
+           <a href="/payments" style={styles.navLink}>Payment History</a>
         </div>
         <button
           onClick={() => { localStorage.removeItem("token"); navigate("/login"); }}

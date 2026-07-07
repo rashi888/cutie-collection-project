@@ -1,3 +1,31 @@
+For Deployment:
+
+Frontend (React)
+    ↓
+Vercel
+
+Backend (Spring Boot)
+    ↓
+Render
+
+Database (PostgreSQL)
+    ↓
+Neon
+
+--------------------------------------------------------------------------------------------------
+
+
+postgresql://neondb_owner:npg_oEJL7iNDgHT5@ep-spring-term-atorkuz6-pooler.c-9.us-east-1.aws.neon.tech/cutie-collection?sslmode=require&channel_binding=require
+
+Neon
+
+set DB_URL=postgresql://neondb_owner:npg_oEJL7iNDgHT5@ep-spring-term-atorkuz6-pooler.c-9.us-east-1.aws.neon.tech/cutie-collection?sslmode=require&channel_binding=require
+set DB_USERNAME=neondb_owner
+set DB_PASSWORD=npg_oEJL7iNDgHT5
+
+
+---------------------------------------------------------------------------------------------------
+
 Using RazorPay for payment, 129 idmail, pan card details
 user1
 user1@gmail.com
