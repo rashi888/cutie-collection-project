@@ -1,10 +1,12 @@
 package com.cutie.collection.backend.service;
 
-import org.springframework.security.core.userdetails.User;
+import java.util.Locale;
+
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.cutie.collection.backend.repository.UserRepository;
 
@@ -21,21 +23,44 @@ public class CustomUserDetailsService
     }
 
     @Override
+    @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(
             String email)
             throws UsernameNotFoundException {
 
+        String normalizedEmail =
+                normalizeEmail(email);
+
         com.cutie.collection.backend.entity.User user =
-                userRepository.findByEmail(email)
+                userRepository
+                        .findByEmailIgnoreCaseAndActiveTrue(
+                                normalizedEmail)
                         .orElseThrow(() ->
                                 new UsernameNotFoundException(
-                                        "User not found"));
+                                        "Invalid email or password"));
 
-        return User.builder()
-                .username(user.getEmail())
+        String authority =
+                "ROLE_" + user.getRole().name();
+
+        return org.springframework.security.core.userdetails.User
+                .withUsername(user.getEmail())
                 .password(user.getPassword())
-                .authorities("USER")
+                .authorities(authority)
+                .accountExpired(false)
+                .accountLocked(false)
+                .credentialsExpired(false)
+                .disabled(!user.isActive())
                 .build();
     }
-}
 
+    private String normalizeEmail(String email) {
+
+        if (email == null) {
+            return null;
+        }
+
+        return email
+                .trim()
+                .toLowerCase(Locale.ROOT);
+    }
+}

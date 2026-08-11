@@ -2,21 +2,25 @@ package com.cutie.collection.backend.service;
 
 import java.util.List;
 
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.cutie.collection.backend.dto.WishlistResponse;
+import com.cutie.collection.backend.entity.Category;
 import com.cutie.collection.backend.entity.Product;
 import com.cutie.collection.backend.entity.User;
 import com.cutie.collection.backend.entity.WishlistItem;
+import com.cutie.collection.backend.exception.ConflictException;
+import com.cutie.collection.backend.exception.ProductNotFoundException;
+import com.cutie.collection.backend.exception.ResourceNotFoundException;
 import com.cutie.collection.backend.repository.ProductRepository;
 import com.cutie.collection.backend.repository.UserRepository;
 import com.cutie.collection.backend.repository.WishlistRepository;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Transactional
 public class WishlistService {
 
     private final WishlistRepository wishlistRepository;
@@ -33,17 +37,87 @@ public class WishlistService {
         this.userRepository = userRepository;
     }
 
-//    private User getCurrentUser(
-//            Authentication authentication) {
-//
-//        String email =
-//                authentication.getName();
-//
-//        return userRepository
-//                .findByEmail(email)
-//                .orElseThrow();
-//    }
-    
+    @Transactional
+    public WishlistResponse addToWishlist(
+            Long productId) {
+
+        User user = getCurrentUser();
+
+        if (wishlistRepository
+                .existsByUserIdAndProductId(
+                        user.getId(),
+                        productId)) {
+
+            throw new ConflictException(
+                    "Product is already present in the wishlist");
+        }
+
+        Product product = productRepository
+                .findByIdAndActiveTrue(productId)
+                .orElseThrow(() ->
+                        new ProductNotFoundException(
+                                productId));
+
+        WishlistItem item =
+                new WishlistItem(
+                        user,
+                        product);
+
+        return mapToResponse(
+                wishlistRepository.save(item));
+    }
+
+    @Transactional(readOnly = true)
+    public List<WishlistResponse> getWishlist() {
+
+        User user = getCurrentUser();
+
+        return wishlistRepository
+                .findAllByUserIdOrderByCreatedAtDesc(
+                        user.getId())
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    @Transactional
+    public void removeFromWishlist(
+            Long productId) {
+
+        User user = getCurrentUser();
+
+        long deletedRows =
+                wishlistRepository
+                        .deleteByUserIdAndProductId(
+                                user.getId(),
+                                productId);
+
+        if (deletedRows == 0) {
+            throw new ResourceNotFoundException(
+                    "Product was not found in the wishlist");
+        }
+    }
+
+    @Transactional
+    public void clearWishlist() {
+
+        User user = getCurrentUser();
+
+        wishlistRepository
+                .deleteAllByUserId(
+                        user.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public long countWishlistItems() {
+
+        User user = getCurrentUser();
+
+        return wishlistRepository
+                .countByUserId(
+                        user.getId());
+    }
+
     private User getCurrentUser() {
 
         Authentication authentication =
@@ -51,109 +125,43 @@ public class WishlistService {
                         .getContext()
                         .getAuthentication();
 
-        if (authentication == null) {
-            throw new RuntimeException(
-                    "User not authenticated");
-        }
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || "anonymousUser".equals(
+                        authentication.getPrincipal())) {
 
-        String email =
-                authentication.getName();
+            throw new AuthenticationCredentialsNotFoundException(
+                    "Authentication is required");
+        }
 
         return userRepository
-                .findByEmail(email)
+                .findByEmailIgnoreCaseAndActiveTrue(
+                        authentication.getName())
                 .orElseThrow(() ->
-                        new RuntimeException(
-                                "User not found"));
+                        new AuthenticationCredentialsNotFoundException(
+                                "Authenticated user was not found"));
     }
 
-    public void addToWishlist(
-            Long productId) {
-
-        User user =
-                getCurrentUser();
-
-        if (wishlistRepository
-                .existsByUserIdAndProductId(
-                        user.getId(),
-                        productId)) {
-            return;
-        }
+    private WishlistResponse mapToResponse(
+            WishlistItem item) {
 
         Product product =
-                productRepository
-                        .findById(productId)
-                        .orElseThrow();
+                item.getProduct();
 
-        WishlistItem item =
-                new WishlistItem();
+        Category category =
+                product.getCategory();
 
-        item.setUser(user);
-        item.setProduct(product);
-
-        wishlistRepository.save(item);
-    }
-
-    public List<WishlistResponse>
-            getWishlist(
-                    ) {
-
-        User user =
-                getCurrentUser();
-
-        return wishlistRepository
-                .findByUserId(user.getId())
-                .stream()
-                .map(item -> {
-
-                    WishlistResponse dto =
-                            new WishlistResponse();
-
-                    dto.setProductId(
-                            item.getProduct().getId());
-
-                    dto.setProductName(
-                            item.getProduct().getName());
-
-                    dto.setImageUrl(
-                            item.getProduct().getImageUrl());
-
-                    dto.setPrice(
-                            item.getProduct().getPrice());
-
-                    dto.setStockQuantity(
-                            item.getProduct()
-                                    .getStockQuantity());
-
-                    dto.setCategoryName(
-                            item.getProduct()
-                                    .getCategory()
-                                    .getName());
-
-                    return dto;
-                })
-                .toList();
-    }
- @Transactional
-    public void removeFromWishlist(
-            Long productId) {
-
-        User user =
-                getCurrentUser();
-
-        wishlistRepository
-                .deleteByUserIdAndProductId(
-                        user.getId(),
-                        productId);
-    }
-
- @Transactional
-    public void clearWishlist() {
-
-        User user =
-                getCurrentUser();
-
-        wishlistRepository
-                .deleteByUserId(
-                        user.getId());
+        return new WishlistResponse(
+                item.getId(),
+                product.getId(),
+                product.getName(),
+                product.getImageUrl(),
+                category.getId(),
+                category.getName(),
+                product.getPrice(),
+                product.getStockQuantity(),
+                product.isActive(),
+                item.getCreatedAt()
+        );
     }
 }

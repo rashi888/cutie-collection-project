@@ -3,112 +3,196 @@ package com.cutie.collection.backend.service;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.cutie.collection.backend.dto.CategoryRequest;
 import com.cutie.collection.backend.dto.CategoryResponse;
 import com.cutie.collection.backend.entity.Category;
 import com.cutie.collection.backend.exception.CategoryNotFoundException;
+import com.cutie.collection.backend.exception.ConflictException;
 import com.cutie.collection.backend.repository.CategoryRepository;
 
-import jakarta.transaction.Transactional;
-
 @Service
-@Transactional
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
 
-    public CategoryService(CategoryRepository categoryRepository) {
+    public CategoryService(
+            CategoryRepository categoryRepository) {
+
         this.categoryRepository = categoryRepository;
     }
 
-    public CategoryResponse createCategory(CategoryRequest request) {
+    @Transactional
+    public CategoryResponse createCategory(
+            CategoryRequest request) {
 
-        if (categoryRepository.existsByName(request.getName())) {
-            throw new RuntimeException(
+        String normalizedName =
+                request.getName().trim();
+
+        if (categoryRepository
+                .existsByNameIgnoreCase(
+                        normalizedName)) {
+
+            throw new ConflictException(
                     "Category already exists with name: "
-                            + request.getName());
+                            + normalizedName);
         }
 
-//        Category category = Category.builder()
-//                .name(request.getName())
-//                .description(request.getDescription())
-//                .build();
-        
-        Category category = new Category();
-        category.setName(request.getName());
-        category.setDescription(request.getDescription());
+        Category category = new Category(
+                normalizedName,
+                request.getDescription()
+        );
 
-        return mapToResponse(categoryRepository.save(category));
+        Category savedCategory =
+                categoryRepository.save(category);
+
+        return mapToResponse(savedCategory);
     }
 
-    public List<CategoryResponse> getAllCategories() {
+    /**
+     * Returns only active categories for customer-facing APIs.
+     */
+    @Transactional(readOnly = true)
+    public List<CategoryResponse>
+            getAllCategories() {
 
-        return categoryRepository.findAll()
+        return categoryRepository
+                .findAllByActiveTrueOrderByNameAsc()
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
     }
 
-    public CategoryResponse getCategoryById(Long id) {
+    /**
+     * Returns all categories, including inactive ones, for administrators.
+     */
+    @Transactional(readOnly = true)
+    public List<CategoryResponse>
+            getAllCategoriesForAdmin() {
 
-        return mapToResponse(findCategoryById(id));
+        return categoryRepository
+                .findAll()
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
     }
 
+    /**
+     * Customer-facing lookup that returns active categories only.
+     */
+    @Transactional(readOnly = true)
+    public CategoryResponse getCategoryById(Long id) {
+
+        Category category = categoryRepository
+                .findByIdAndActiveTrue(id)
+                .orElseThrow(() ->
+                        new CategoryNotFoundException(id));
+
+        return mapToResponse(category);
+    }
+
+    /**
+     * Administrator lookup that may return an inactive category.
+     */
+    @Transactional(readOnly = true)
+    public CategoryResponse getCategoryByIdForAdmin(
+            Long id) {
+
+        return mapToResponse(
+                findCategoryForAdmin(id));
+    }
+
+    @Transactional
     public CategoryResponse updateCategory(
             Long id,
             CategoryRequest request) {
 
-        Category category = findCategoryById(id);
+        Category category =
+                findCategoryForAdmin(id);
 
-        if (!category.getName().equals(request.getName())
-                && categoryRepository.existsByName(request.getName())) {
+        String normalizedName =
+                request.getName().trim();
 
-            throw new RuntimeException(
+        boolean conflictingName =
+                categoryRepository
+                        .existsByNameIgnoreCaseAndIdNot(
+                                normalizedName,
+                                id);
+
+        if (conflictingName) {
+            throw new ConflictException(
                     "Category already exists with name: "
-                            + request.getName());
+                            + normalizedName);
         }
 
-        category.setName(request.getName());
-        category.setDescription(request.getDescription());
+        category.setName(normalizedName);
+        category.setDescription(
+                request.getDescription());
 
-        return mapToResponse(categoryRepository.save(category));
+        Category savedCategory =
+                categoryRepository.save(category);
+
+        return mapToResponse(savedCategory);
     }
 
+    /**
+     * Performs a soft deletion instead of permanently deleting the row.
+     */
+    @Transactional
     public void deleteCategory(Long id) {
 
-        Category category = findCategoryById(id);
-        categoryRepository.delete(category);
+        Category category =
+                findCategoryForAdmin(id);
+
+        category.deactivate();
+
+        categoryRepository.save(category);
     }
 
-    private Category findCategoryById(Long id) {
+    @Transactional
+    public CategoryResponse activateCategory(Long id) {
 
-        return categoryRepository.findById(id)
+        Category category =
+                findCategoryForAdmin(id);
+
+        category.activate();
+
+        return mapToResponse(
+                categoryRepository.save(category));
+    }
+
+    @Transactional
+    public CategoryResponse deactivateCategory(
+            Long id) {
+
+        Category category =
+                findCategoryForAdmin(id);
+
+        category.deactivate();
+
+        return mapToResponse(
+                categoryRepository.save(category));
+    }
+
+    private Category findCategoryForAdmin(Long id) {
+
+        return categoryRepository
+                .findById(id)
                 .orElseThrow(() ->
-                        new CategoryNotFoundException(
-                                "Category not found with id: " + id));
+                        new CategoryNotFoundException(id));
     }
-    private CategoryResponse mapToResponse(Category category) {
 
-        CategoryResponse response = new CategoryResponse();
+    private CategoryResponse mapToResponse(
+            Category category) {
 
-        response.setId(category.getId());
-        response.setName(category.getName());
-        response.setDescription(category.getDescription());
-        response.setCreatedAt(category.getCreatedAt());
-        response.setUpdatedAt(category.getUpdatedAt());
-
-        return response;
+        return new CategoryResponse(
+                category.getId(),
+                category.getName(),
+                category.getDescription(),
+                category.isActive(),
+                category.getCreatedAt(),
+                category.getUpdatedAt()
+        );
     }
-    
-//    private CategoryResponse mapToResponse(Category category) {
-//
-//        return CategoryResponse.builder()
-//                .id(category.getId())
-//                .name(category.getName())
-//                .description(category.getDescription())
-//                .createdAt(category.getCreatedAt())
-//                .updatedAt(category.getUpdatedAt())
-//                .build();
-//    }
 }

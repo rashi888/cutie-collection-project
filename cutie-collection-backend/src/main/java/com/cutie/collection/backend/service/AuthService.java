@@ -1,12 +1,19 @@
 package com.cutie.collection.backend.service;
 
+import java.util.Locale;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.cutie.collection.backend.dto.AuthResponse;
 import com.cutie.collection.backend.dto.LoginRequest;
 import com.cutie.collection.backend.dto.SignupRequest;
+import com.cutie.collection.backend.entity.Role;
 import com.cutie.collection.backend.entity.User;
+import com.cutie.collection.backend.exception.ConflictException;
+import com.cutie.collection.backend.exception.UnauthorizedOperationException;
 import com.cutie.collection.backend.repository.UserRepository;
 import com.cutie.collection.backend.util.JwtUtil;
 
@@ -16,78 +23,131 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final long jwtExpirationMs;
 
     public AuthService(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
-            JwtUtil jwtUtil) {
+            JwtUtil jwtUtil,
+            @Value("${application.jwt.expiration-ms}")
+            long jwtExpirationMs) {
 
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.jwtExpirationMs = jwtExpirationMs;
     }
 
-    public AuthResponse signup(
-            SignupRequest request) {
+    @Transactional
+    public AuthResponse signup(SignupRequest request) {
 
-        if (userRepository.existsByEmail(
-                request.getEmail())) {
+        String normalizedEmail =
+                normalizeEmail(request.getEmail());
 
-            throw new RuntimeException(
-                    "Email already exists");
+        if (userRepository.existsByEmailIgnoreCase(
+                normalizedEmail)) {
+
+            throw new ConflictException(
+                    "An account already exists with this email");
         }
 
-        User user = new User();
-
-        user.setName(request.getName());
-        user.setEmail(request.getEmail());
-        user.setRole("USER");
-        user.setPassword(
+        String encodedPassword =
                 passwordEncoder.encode(
-                        request.getPassword()));
+                        request.getPassword());
 
-        userRepository.save(user);
+        User user = new User(
+                request.getName(),
+                normalizedEmail,
+                encodedPassword
+        );
 
-        String token =
+        /*
+         * Never take the role from the signup request.
+         * Every public signup creates a CUSTOMER.
+         */
+        user.setRole(Role.CUSTOMER);
+        user.setActive(true);
+
+        User savedUser =
+                userRepository.save(user);
+
+        String accessToken =
                 jwtUtil.generateToken(
-                        user.getEmail());
+                        savedUser.getEmail());
 
-        return new AuthResponse(
-                token,
-                user.getName(),
-                "User registered successfully",
-                user.getRole());
+        return createAuthResponse(
+                savedUser,
+                accessToken,
+                "User registered successfully"
+        );
     }
 
-    public AuthResponse login(
-            LoginRequest request) {
+    @Transactional(readOnly = true)
+    public AuthResponse login(LoginRequest request) {
 
-        User user =
-                userRepository
-                        .findByEmail(
-                                request.getEmail())
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "Invalid credentials"));
+        String normalizedEmail =
+                normalizeEmail(request.getEmail());
 
-        boolean matches =
+        /*
+         * The same generic message is returned when the email does not
+         * exist, the account is inactive, or the password is incorrect.
+         * This prevents account-enumeration information leakage.
+         */
+        User user = userRepository
+                .findByEmailIgnoreCaseAndActiveTrue(
+                        normalizedEmail)
+                .orElseThrow(() ->
+                        new UnauthorizedOperationException(
+                                "Invalid email or password"));
+
+        boolean passwordMatches =
                 passwordEncoder.matches(
                         request.getPassword(),
                         user.getPassword());
 
-        if (!matches) {
-            throw new RuntimeException(
-                    "Invalid credentials");
+        if (!passwordMatches) {
+            throw new UnauthorizedOperationException(
+                    "Invalid email or password");
         }
 
-        String token =
+        String accessToken =
                 jwtUtil.generateToken(
                         user.getEmail());
 
+        return createAuthResponse(
+                user,
+                accessToken,
+                "Login successful"
+        );
+    }
+
+    private AuthResponse createAuthResponse(
+            User user,
+            String accessToken,
+            String message) {
+
+        long expirationInSeconds =
+                jwtExpirationMs / 1000;
+
         return new AuthResponse(
-                token,
+                accessToken,
+                expirationInSeconds,
+                user.getId(),
                 user.getName(),
-                "Login successful",
-                user.getRole());
+                user.getEmail(),
+                user.getRole(),
+                message
+        );
+    }
+
+    private String normalizeEmail(String email) {
+
+        if (email == null) {
+            return null;
+        }
+
+        return email
+                .trim()
+                .toLowerCase(Locale.ROOT);
     }
 }
