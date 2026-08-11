@@ -1,0 +1,9 @@
+# Environment files containing real values
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Keep the safe template in Git
+!.env.example

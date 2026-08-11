@@ -1,499 +1,601 @@
-For Deployment:
+CUTIE COLLECTION
+FULL-STACK E-COMMERCE APPLICATION
+PROJECT REQUIREMENTS AND SETUP DOCUMENT
 
-Frontend (React)
-    ↓
-Vercel
+======================================================================
+1. PROJECT OVERVIEW
+======================================================================
 
-Backend (Spring Boot)
-    ↓
-Render
+Project Name: Cutie Collection
+Project Type: Full-stack e-commerce web application
 
-Database (PostgreSQL)
-    ↓
-Neon
+Purpose:
+Cutie Collection allows customers to register, log in, browse products,
+search and sort products, manage a cart and wishlist, place orders, make
+payments, and view order history. Administrators can manage categories,
+products, stock, and customer orders.
 
---------------------------------------------------------------------------------------------------
+======================================================================
+2. TECHNOLOGY STACK
+======================================================================
 
+Frontend:
+- React
+- JavaScript
+- React Router
+- Axios or Fetch API
+- CSS
+- Vercel deployment
 
-postgresql://neondb_owner:npg_oEJL7iNDgHT5@ep-spring-term-atorkuz6-pooler.c-9.us-east-1.aws.neon.tech/cutie-collection?sslmode=require&channel_binding=require
+Backend:
+- Java
+- Spring Boot
+- Spring Web
+- Spring Data JPA
+- Spring Security
+- JWT authentication
+- Maven
+- Render deployment
 
-Neon
+Database:
+- PostgreSQL
+- Neon PostgreSQL
 
-set DB_URL=postgresql://neondb_owner:npg_oEJL7iNDgHT5@ep-spring-term-atorkuz6-pooler.c-9.us-east-1.aws.neon.tech/cutie-collection?sslmode=require&channel_binding=require
-set DB_USERNAME=neondb_owner
-set DB_PASSWORD=npg_oEJL7iNDgHT5
+Payment:
+- Razorpay
 
+Testing and documentation:
+- JUnit
+- Mockito
+- Spring Boot Test
+- Postman
+- Swagger/OpenAPI
 
----------------------------------------------------------------------------------------------------
+======================================================================
+3. USER ROLES
+======================================================================
 
-Using RazorPay for payment, 129 idmail, pan card details
-user1
-user1@gmail.com
-123456
+CUSTOMER:
+- Register and log in
+- View, search, sort, and paginate products
+- Manage cart and wishlist
+- Manage shipping addresses
+- Place orders and make payments
+- View and cancel eligible personal orders
 
+ADMIN:
+- Manage categories
+- Manage products and stock
+- View all orders
+- Update order status
+- Access the admin dashboard
 
+All administrator operations must use role-based authorization.
 
-API  Key id - rzp_test_T8TbbFa8piWh1l
-Secret Key: zTCySSHrcy6d5IZm1AN8Ugsu
+======================================================================
+4. AUTHENTICATION AND AUTHORIZATION
+======================================================================
 
+POST /api/auth/signup
+POST /api/auth/login
+GET  /api/users/me
 
-
-
-admin
-admin@gmail.com
-123456789
-
-from db i can check
-
-*********************POSTMAN API TESTING***********************************
-
-
-Let's create a **complete Postman testing flow** for your project so far:
-
-# ✅ Module 1: Authentication
-
-## 1. Signup
-
-### POST
-
-```http
-http://localhost:8080/api/auth/signup
-```
-
-### Body
-
-```json
+Signup request example:
 {
   "name": "Rashi",
-  "email": "rashi@gmail.com",
+  "email": "rashi@example.com",
   "password": "Password@123"
 }
-```
 
-### Expected
-
-```json
+Login request example:
 {
-  "message": "User registered successfully"
-}
-```
-
-***
-
-## 2. Login
-
-### POST
-
-```http
-http://localhost:8080/api/auth/login
-```
-
-### Body
-
-```json
-{
-  "email": "rashi@gmail.com",
+  "email": "rashi@example.com",
   "password": "Password@123"
 }
-```
 
-### Expected
-
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiJ9..."
-}
-```
-
-📌 Copy this token.
-
-***
-
-# ✅ Authorization Header
-
-For all protected APIs:
-
-### Headers
-
-```text
-Authorization : Bearer <paste_token_here>
-```
-
-Example:
-
-```text
-Authorization : Bearer eyJhbGciOiJIUzI1NiJ9...
-```
-
-***
-
-# ✅ Module 2: Categories
-
-## 3. Create Category
-
-### POST
-
-```http
-http://localhost:8080/api/categories
-```
-
-### Body
-
-```json
-{
-  "name": "Soft Toys",
-  "description": "Cute plush toys"
-}
-```
-
-***
-
-## 4. Create Category
-
-### POST
-
-```http
-http://localhost:8080/api/categories
-```
-
-### Body
-
-```json
-{
-  "name": "Stationery",
-  "description": "Cute notebooks and pens"
-}
-```
-
-***
-
-## 5. Get All Categories
-
-### GET
-
-```http
-http://localhost:8080/api/categories
-```
-
-Expected:
-
-```json
-[
-  {
-    "id": 1,
-    "name": "Soft Toys"
-  },
-  {
-    "id": 2,
-    "name": "Stationery"
-  }
-]
-```
-
-***
-
-## 6. Get Category By Id
-
-### GET
-
-```http
-http://localhost:8080/api/categories/1
-```
-
-***
-
-## 7. Update Category
-
-### PUT
-
-```http
-http://localhost:8080/api/categories/1
-```
-
-### Body
-
-```json
-{
-  "name": "Premium Soft Toys",
-  "description": "Updated category"
-}
-```
-
-***
-
-## 8. Delete Category
-
-### DELETE
-
-```http
-http://localhost:8080/api/categories/2
-```
-
-***
-
-# ✅ Verify Category Data
-
-```sql
-SELECT * FROM categories;
-```
-
-***
-
-# ✅ Module 3: Products
-
-Before creating products, ensure category id exists.
-
-Example:
-
-```text
-1 = Premium Soft Toys
-```
-
-***
-
-## 9. Create Product
-
-### POST
-
-```http
-http://localhost:8080/api/products
-```
-
-### Body
-
-```json
-{
-  "name": "Cute Teddy Bear",
-  "description": "Soft and fluffy teddy bear",
-  "price": 499.99,
-  "stockQuantity": 50,
-  "imageUrl": "https://example.com/teddy.jpg",
-  "categoryId": 1
-}
-```
-
-***
-
-## 10. Create Another Product
-
-### POST
-
-```http
-http://localhost:8080/api/products
-```
-
-### Body
-
-```json
-{
-  "name": "Panda Plush",
-  "description": "Cute panda soft toy",
-  "price": 699.99,
-  "stockQuantity": 25,
-  "imageUrl": "https://example.com/panda.jpg",
-  "categoryId": 1
-}
-```
-
-***
-
-## 11. Get All Products
-
-### GET
-
-```http
-http://localhost:8080/api/products
-```
-
-***
-
-## 12. Get Product By Id
-
-### GET
-
-```http
-http://localhost:8080/api/products/1
-```
-
-***
-
-## 13. Update Product
-
-### PUT
-
-```http
-http://localhost:8080/api/products/1
-```
-
-### Body
-
-```json
-{
-  "name": "Premium Teddy Bear",
-  "description": "Updated teddy bear",
-  "price": 599.99,
-  "stockQuantity": 75,
-  "imageUrl": "https://example.com/premium-teddy.jpg",
-  "categoryId": 1
-}
-```
-
-***
-
-## 14. Get Products By Category
-
-### GET
-
-```http
-http://localhost:8080/api/products/category/1
-```
-
-Expected:
-
-```json
-[
-  {
-    "id": 1,
-    "name": "Premium Teddy Bear"
-  },
-  {
-    "id": 2,
-    "name": "Panda Plush"
-  }
-]
-```
-
-***
-
-## 15. Delete Product
-
-### DELETE
-
-```http
-http://localhost:8080/api/products/2
-```
-
-***
-
-# ✅ Verify Product Data
-
-```sql
-SELECT * FROM products;
-```
-
-***
-
-# ✅ Verify Product ↔ Category Relationship
-
-```sql
-SELECT
-    p.id,
-    p.name,
-    p.price,
-    c.name AS category_name
-FROM products p
-JOIN categories c
-ON p.category_id = c.id;
-```
-
-Expected:
-
-```text
-1 | Premium Teddy Bear | 599.99 | Premium Soft Toys
-```
-
-***
-
-# 🎯 Complete Testing Order
-
-```text
-1. Signup
-2. Login
-3. Copy JWT Token
-
-4. Create Category
-5. Create Category
-6. Get All Categories
-
-7. Create Product
-8. Create Product
-9. Get All Products
-10. Get Product By Id
-11. Update Product
-12. Get Products By Category
-13. Delete Product
-
-14. Verify in PostgreSQL
-```
-
-If all these pass successfully, then:
-
-✅ Authentication Module Complete  
-✅ Category Module Complete  
-✅ Product Module Complete
-
-and you're ready to start **Module 4: Cart Management** 🛒🚀.
-
-
-POST   /api/cart/add
+Protected request header:
+Authorization: Bearer <jwt-access-token>
+
+Requirements:
+- Hash passwords with BCrypt
+- Prevent duplicate email registration
+- Generate expiring JWT access tokens
+- Return HTTP 401 for missing, invalid, or expired authentication
+- Return HTTP 403 when the authenticated user lacks permission
+- Never return passwords or password hashes through APIs
+- Load the JWT secret from an environment variable
+
+======================================================================
+5. CATEGORY MANAGEMENT
+======================================================================
+
+Public endpoints:
+GET /api/categories
+GET /api/categories/{categoryId}
+
+Administrator endpoints:
+POST   /api/admin/categories
+PUT    /api/admin/categories/{categoryId}
+DELETE /api/admin/categories/{categoryId}
+
+Category fields:
+- id
+- name
+- description
+- active
+- createdAt
+- updatedAt
+
+Validation:
+- Name is required and unique
+- Blank names are not allowed
+- Categories associated with products should be deactivated rather than
+  permanently deleted
+
+======================================================================
+6. PRODUCT MANAGEMENT
+======================================================================
+
+Public endpoints:
+GET /api/products
+GET /api/products/{productId}
+GET /api/products/category/{categoryId}
+GET /api/products/search?keyword={keyword}
+GET /api/products/paged?page=0&size=12&sortBy=price&direction=asc
+
+Administrator endpoints:
+POST   /api/admin/products
+PUT    /api/admin/products/{productId}
+DELETE /api/admin/products/{productId}
+
+Product fields:
+- id
+- name
+- description
+- price
+- stockQuantity
+- imageUrl
+- active
+- categoryId
+- categoryName
+- createdAt
+- updatedAt
+
+Validation:
+- Name is required
+- Price must be greater than zero
+- Stock quantity cannot be negative
+- Category must exist
+- Inactive products must not appear in normal customer results
+- Allowed sorting fields: name, price, stockQuantity, createdAt
+- Allowed directions: asc, desc
+
+======================================================================
+7. CART MANAGEMENT
+======================================================================
+
+POST   /api/cart/items
 GET    /api/cart
-PUT    /api/cart/update/{itemId}
-DELETE /api/cart/remove/{itemId}
-DELETE /api/cart/clear
+PUT    /api/cart/items/{productId}
+DELETE /api/cart/items/{productId}
+DELETE /api/cart
 
+Add-item request:
+{
+  "productId": 1,
+  "quantity": 2
+}
 
-POST   /api/orders/place
-GET    /api/orders/my
-GET    /api/orders/{orderId}
-DELETE /api/orders/{orderId}/cancel
+Update-quantity request:
+{
+  "quantity": 3
+}
 
+Requirements:
+- Each customer has a personal cart
+- Quantity must be at least one
+- The backend validates available stock
+- The backend reads the current price from the database
+- The backend calculates line totals and the grand total
+- A customer cannot access another customer's cart
 
+======================================================================
+8. WISHLIST MANAGEMENT
+======================================================================
 
+POST   /api/wishlist/{productId}
+GET    /api/wishlist
+DELETE /api/wishlist/{productId}
+DELETE /api/wishlist
 
-# CART
+Requirements:
+- A product cannot be duplicated in the same wishlist
+- A customer cannot access another customer's wishlist
 
-POST   http://localhost:8080/api/cart/add
+======================================================================
+9. ADDRESS MANAGEMENT
+======================================================================
 
-GET    http://localhost:8080/api/cart
+POST   /api/addresses
+GET    /api/addresses
+GET    /api/addresses/{addressId}
+PUT    /api/addresses/{addressId}
+DELETE /api/addresses/{addressId}
 
-PUT    http://localhost:8080/api/cart/update/{itemId}
+Address fields:
+- id
+- fullName
+- phoneNumber
+- addressLine1
+- addressLine2
+- city
+- state
+- postalCode
+- country
+- defaultAddress
 
-DELETE http://localhost:8080/api/cart/remove/{itemId}
+The authenticated customer must own every address accessed or modified.
 
-DELETE http://localhost:8080/api/cart/clear
+======================================================================
+10. ORDER MANAGEMENT
+======================================================================
 
+Customer endpoints:
+POST  /api/orders
+GET   /api/orders/my
+GET   /api/orders/{orderId}
+PATCH /api/orders/{orderId}/cancel
 
-# ORDERS
+Administrator endpoints:
+GET   /api/admin/orders
+GET   /api/admin/orders/{orderId}
+PATCH /api/admin/orders/{orderId}/status
 
-POST   http://localhost:8080/api/orders/place
+Order statuses:
+- PENDING
+- CONFIRMED
+- PROCESSING
+- SHIPPED
+- DELIVERED
+- CANCELLED
 
-GET    http://localhost:8080/api/orders/my
+Payment statuses:
+- PENDING
+- CREATED
+- PAID
+- FAILED
+- REFUNDED
 
-GET    http://localhost:8080/api/orders/{orderId}
+Requirements:
+- Do not allow an order from an empty cart
+- Validate stock before creating an order
+- Save product price in the order item at order time
+- Save a snapshot of the shipping address
+- Calculate totals on the backend
+- Update stock within a database transaction
+- Clear the cart after successful order placement
+- Customers may access only their own orders
+- Shipped or delivered orders cannot be cancelled by customers
 
-DELETE http://localhost:8080/api/orders/{orderId}/cancel
+======================================================================
+11. RAZORPAY PAYMENT MANAGEMENT
+======================================================================
 
+POST /api/payments/create-order
+POST /api/payments/verify
 
-=====================================================================================
+Create-payment request:
+{
+  "orderId": 1
+}
 
-Wishlist module:
+Verification request:
+{
+  "applicationOrderId": 1,
+  "razorpayOrderId": "<razorpay-order-id>",
+  "razorpayPaymentId": "<razorpay-payment-id>",
+  "razorpaySignature": "<razorpay-signature>"
+}
 
+Requirements:
+- Create the Razorpay order from the backend
+- Calculate the amount from backend order data
+- Never accept the final payment amount from the frontend
+- Never send the Razorpay secret key to the frontend
+- Verify the Razorpay signature on the backend
+- Mark the application order as paid only after successful verification
+- Handle duplicate callbacks safely
+- Keep test and production keys separate
 
-POST /api/wishlist/add/1
+======================================================================
+12. FRONTEND REQUIREMENTS
+======================================================================
 
-GET /api/wishlist/clearGET /api/wishlist
+Customer pages:
+- Home
+- Product list
+- Product details
+- Search results
+- Login
+- Signup
+- Cart
+- Wishlist
+- Address management
+- Checkout
+- Payment result
+- Order history
+- Order details
+- User profile
+- Access denied
+- Not found
 
-DELETE /api/wishlist/remove/1
+Administrator pages:
+- Dashboard
+- Category management
+- Product management
+- Create and edit product
+- Order management
+- Order details
 
- GET /api/wishlist
-POST /api/wishlist/add/{productId}
+UI requirements:
+- Responsive design
+- Reusable components
+- Protected customer and administrator routes
+- Loading, empty, success, and error states
+- Form validation
+- Accessible labels and alternative image text
+- Pagination and sorting controls
+- Cart and wishlist counts in navigation
+- Confirmation before destructive actions
+- API base URL loaded from VITE_API_BASE_URL
 
+======================================================================
+13. BACKEND ARCHITECTURE
+======================================================================
 
+Recommended packages:
+- config
+- controller
+- dto.request
+- dto.response
+- entity
+- exception
+- mapper
+- repository
+- security
+- service
+- service.impl
+- util
+- validation
 
-GET /api/products/paged?page=0&size=5&sortBy=price&direction=asc
-GET http://localhost:8080/api/products/paged?page=0&size=5&sortBy=price&direction=desc
-GET http://localhost:8080/api/products/paged?page=0&size=5&sortBy=name&direction=asc
-GET http://localhost:8080/api/products/paged?page=0&size=5&sortBy=stockQuantity&direction=desc
+Rules:
+- Controllers handle HTTP requests and responses
+- Services contain business rules
+- Repositories perform database operations
+- DTOs define API requests and responses
+- Use constructor injection
+- Use request validation
+- Use global exception handling
+- Use transactions for order and stock operations
+- Do not log passwords, tokens, database credentials, or payment secrets
 
-GET http://localhost:8080/api/products/search?keyword=teddy
+======================================================================
+14. STANDARD ERROR RESPONSE
+======================================================================
 
+Example:
+{
+  "timestamp": "2026-08-11T10:30:00Z",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Price must be greater than zero",
+  "path": "/api/admin/products",
+  "validationErrors": {
+    "price": "Price must be greater than zero"
+  }
+}
+
+Recommended HTTP statuses:
+- 200 OK
+- 201 Created
+- 204 No Content
+- 400 Bad Request
+- 401 Unauthorized
+- 403 Forbidden
+- 404 Not Found
+- 409 Conflict
+- 500 Internal Server Error
+
+Do not expose stack traces or internal exception details to customers.
+
+======================================================================
+15. DATABASE REQUIREMENTS
+======================================================================
+
+Suggested tables:
+- users
+- roles
+- categories
+- products
+- carts
+- cart_items
+- wishlists
+- wishlist_items
+- addresses
+- orders
+- order_items
+- payments
+
+Rules:
+- Email is unique
+- Category name is unique
+- Money uses a decimal type
+- Price is positive
+- Stock is not negative
+- Cart quantity is positive
+- Duplicate cart and wishlist items are prevented
+- Important foreign keys are indexed
+- Schema changes use Flyway or another migration tool
+
+======================================================================
+16. ENVIRONMENT VARIABLES
+======================================================================
+
+Backend variables:
+DB_URL=<postgresql-jdbc-url>
+DB_USERNAME=<database-username>
+DB_PASSWORD=<database-password>
+JWT_SECRET=<strong-random-jwt-secret>
+JWT_EXPIRATION_MS=3600000
+RAZORPAY_KEY_ID=<razorpay-key-id>
+RAZORPAY_KEY_SECRET=<razorpay-secret>
+FRONTEND_URL=http://localhost:5173
+
+Frontend variable:
+VITE_API_BASE_URL=http://localhost:8080
+
+Rules:
+- Keep real values only in local environment variables and deployment
+  platform settings
+- Commit .env.example with placeholder values only
+- Do not commit .env
+- Do not place backend secrets in frontend variables
+- Spring Boot generally uses a JDBC URL such as:
+  jdbc:postgresql://<host>:5432/<database>?sslmode=require
+
+======================================================================
+17. LOCAL SETUP
+======================================================================
+
+1. Create local files from the safe templates:
+
+Backend:
+- Copy .env.example to .env only if the chosen local setup loads .env
+- Otherwise configure the listed variables in the terminal or IDE
+
+Frontend:
+- Create .env.local inside cutie-collection-frontend
+- Add VITE_API_BASE_URL=http://localhost:8080
+
+2. Start backend:
+
+cd cutie-collection-backend
+mvn clean test
+mvn spring-boot:run
+
+3. Start frontend:
+
+cd cutie-collection-frontend
+npm install
+npm run dev
+
+Local URLs:
+- Frontend: http://localhost:5173
+- Backend: http://localhost:8080
+- Swagger: http://localhost:8080/swagger-ui/index.html
+
+======================================================================
+18. DEPLOYMENT
+======================================================================
+
+Architecture:
+React -> Vercel -> Spring Boot REST API -> Render -> Neon PostgreSQL
+
+Vercel:
+- Set the frontend root directory
+- Set the build command and output directory
+- Add VITE_API_BASE_URL with the deployed backend URL
+- Do not store backend secrets in Vercel
+
+Render:
+- Set the backend root directory
+- Configure build and start commands
+- Add backend environment variables from .env.example
+- Set FRONTEND_URL to the deployed Vercel URL
+- Configure a health-check endpoint
+
+Neon:
+- Store the JDBC connection data only in Render
+- Require SSL
+- Use schema migrations
+- Never publish the connection password
+
+======================================================================
+19. TESTING FLOW
+======================================================================
+
+Recommended Postman order:
+1. Register customer
+2. Log in as customer
+3. Log in as administrator
+4. Create category as administrator
+5. Create product as administrator
+6. View and search products
+7. Test pagination and sorting
+8. Add and remove wishlist items
+9. Add and update cart items
+10. Create an address
+11. Place an order
+12. Create and verify payment
+13. View customer order history
+14. View and update order as administrator
+15. Test authorization and invalid requests
+
+Important negative tests:
+- Duplicate registration
+- Invalid login
+- Missing or expired token
+- Customer accessing administrator endpoint
+- Duplicate category
+- Negative price or stock
+- Nonexistent category or product
+- Quantity greater than stock
+- Empty-cart order
+- Access to another customer's order
+- Invalid Razorpay signature
+
+======================================================================
+20. SECURITY REQUIREMENTS
+======================================================================
+
+Never commit:
+- .env files
+- Database passwords or credential-bearing URLs
+- JWT secrets
+- Razorpay secrets
+- Email passwords
+- AWS access keys
+- Personal identity documents
+- Real customer or administrator passwords
+
+Repository-safe files:
+- .env.example with placeholder values
+- application.properties using ${VARIABLE_NAME}
+- README.md without secrets
+- RequiredDoc.txt without secrets
+
+Any credential previously committed to Git must be rotated. Removing it
+from the latest file does not automatically remove it from Git history.
+
+======================================================================
+21. ACCEPTANCE CRITERIA
+======================================================================
+
+The project is ready when:
+1. Registration and login work securely
+2. JWT authorization and roles work
+3. Categories and products are manageable by administrators
+4. Search, pagination, and sorting work
+5. Cart and wishlist work per customer
+6. Address and checkout flows work
+7. Orders safely validate and update stock
+8. Razorpay payments are created and verified on the backend
+9. Customers can view only their own orders
+10. Administrators can manage orders
+11. Important tests pass
+12. The UI is responsive
+13. The repository contains no secrets
+14. Frontend, backend, and database are deployed successfully
+15. README instructions work on a clean machine
+
+END OF DOCUMENT

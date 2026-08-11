@@ -33,7 +33,5 @@ public class PaymentSuccessRequest {
 	public void setAmount(BigDecimal amount) {
 		this.amount = amount;
 	}
-
-   
-    
+ 
 }
