@@ -1,6 +1,5 @@
 package com.cutie.collection.backend.dto;
 
-
 import java.time.LocalDateTime;
 
 public record AddressResponse(

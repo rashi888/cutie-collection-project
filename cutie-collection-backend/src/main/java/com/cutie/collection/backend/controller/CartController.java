@@ -1,86 +1,164 @@
 package com.cutie.collection.backend.controller;
 
+import java.net.URI;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.cutie.collection.backend.dto.CartRequest;
 import com.cutie.collection.backend.dto.CartResponse;
-import com.cutie.collection.backend.entity.User;
-import com.cutie.collection.backend.repository.UserRepository;
 import com.cutie.collection.backend.service.CartService;
+import com.cutie.collection.backend.service.CurrentUserService;
 
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/cart")
-@CrossOrigin(origins = "*")
 public class CartController {
 
     private final CartService cartService;
-    private final UserRepository userRepository;
+    private final CurrentUserService currentUserService;
 
-    public CartController(CartService cartService,
-                          UserRepository userRepository) {
+    public CartController(
+            CartService cartService,
+            CurrentUserService currentUserService) {
+
         this.cartService = cartService;
-        this.userRepository = userRepository;
+        this.currentUserService = currentUserService;
     }
 
-    // ✅ Helper: get logged-in user's ID from JWT
-    private Long getLoggedInUserId(UserDetails userDetails) {
-        User user = userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        return user.getId();
-    }
-
-    // Add item to cart
-    @PostMapping("/add")
+    @PostMapping("/items")
     public ResponseEntity<CartResponse> addToCart(
-            @AuthenticationPrincipal UserDetails userDetails,
-            @Valid @RequestBody CartRequest request) {
+            Authentication authentication,
+            @Valid
+            @RequestBody
+            CartRequest request) {
 
-        Long userId = getLoggedInUserId(userDetails);
-        return ResponseEntity.ok(cartService.addToCart(userId, request));
+        Long userId =
+                currentUserService.getCurrentUserId(
+                        authentication);
+
+        CartResponse response =
+                cartService.addToCart(
+                        userId,
+                        request);
+
+        return ResponseEntity
+                .created(
+                        URI.create(
+                                "/api/cart/items/"
+                                        + response.getId()))
+                .body(response);
     }
 
-    // Get all cart items
     @GetMapping
     public ResponseEntity<List<CartResponse>> getCart(
-            @AuthenticationPrincipal UserDetails userDetails) {
+            Authentication authentication) {
 
-        Long userId = getLoggedInUserId(userDetails);
-        return ResponseEntity.ok(cartService.getCart(userId));
-    }
-
-    // Update quantity
-    @PutMapping("/update/{itemId}")
-    public ResponseEntity<CartResponse> updateQuantity(
-            @PathVariable Long itemId,
-            @RequestBody CartRequest request) {
+        Long userId =
+                currentUserService.getCurrentUserId(
+                        authentication);
 
         return ResponseEntity.ok(
-                cartService.updateQuantity(itemId, request.getQuantity()));
+                cartService.getCart(userId));
     }
 
-    // Remove item from cart
-    @DeleteMapping("/remove/{itemId}")
+    @GetMapping("/count")
+    public ResponseEntity<Map<String, Long>>
+            countCartItems(
+                    Authentication authentication) {
+
+        Long userId =
+                currentUserService.getCurrentUserId(
+                        authentication);
+
+        long count =
+                cartService.countCartItems(userId);
+
+        return ResponseEntity.ok(
+                Map.of("count", count));
+    }
+
+    @PutMapping("/items/{cartItemId}")
+    public ResponseEntity<CartResponse> updateQuantity(
+            Authentication authentication,
+            @PathVariable
+            Long cartItemId,
+            @Valid
+            @RequestBody
+            CartRequest request) {
+
+        Long userId =
+                currentUserService.getCurrentUserId(
+                        authentication);
+
+        return ResponseEntity.ok(
+                cartService.updateQuantity(
+                        userId,
+                        cartItemId,
+                        request.getQuantity()));
+    }
+
+    @DeleteMapping("/items/{cartItemId}")
     public ResponseEntity<Void> removeItem(
-            @PathVariable Long itemId) {
+            Authentication authentication,
+            @PathVariable
+            Long cartItemId) {
 
-        cartService.removeFromCart(itemId);
-        return ResponseEntity.noContent().build();
+        Long userId =
+                currentUserService.getCurrentUserId(
+                        authentication);
+
+        cartService.removeFromCart(
+                userId,
+                cartItemId);
+
+        return ResponseEntity
+                .noContent()
+                .build();
     }
 
-    // Clear entire cart
-    @DeleteMapping("/clear")
-    public ResponseEntity<Void> clearCart(
-            @AuthenticationPrincipal UserDetails userDetails) {
+    @DeleteMapping("/products/{productId}")
+    public ResponseEntity<Void> removeProduct(
+            Authentication authentication,
+            @PathVariable
+            Long productId) {
 
-        Long userId = getLoggedInUserId(userDetails);
+        Long userId =
+                currentUserService.getCurrentUserId(
+                        authentication);
+
+        cartService.removeProductFromCart(
+                userId,
+                productId);
+
+        return ResponseEntity
+                .noContent()
+                .build();
+    }
+
+    @DeleteMapping
+    public ResponseEntity<Void> clearCart(
+            Authentication authentication) {
+
+        Long userId =
+                currentUserService.getCurrentUserId(
+                        authentication);
+
         cartService.clearCart(userId);
-        return ResponseEntity.noContent().build();
+
+        return ResponseEntity
+                .noContent()
+                .build();
     }
 }

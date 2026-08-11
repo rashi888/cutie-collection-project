@@ -27,3 +27,6 @@ cutie-collection-frontend/.env.local
 *.iml
 .DS_Store
 Thumbs.db
+
+# Local Spring configuration containing secrets
+cutie-collection-backend/src/main/resources/application-local.properties

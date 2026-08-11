@@ -1,8 +1,10 @@
 package com.cutie.collection.backend.controller;
 
+import java.net.URI;
 import java.util.List;
+import java.util.Map;
 
-import org.springframework.security.core.Authentication;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,34 +27,80 @@ public class WishlistController {
         this.wishlistService = wishlistService;
     }
 
+    /**
+     * Returns the authenticated customer's wishlist.
+     */
     @GetMapping
-    public List<WishlistResponse> getWishlist() {
-        return wishlistService.getWishlist();
+    public ResponseEntity<List<WishlistResponse>>
+            getWishlist() {
+
+        return ResponseEntity.ok(
+                wishlistService.getWishlist());
     }
 
-    @PostMapping("/add/{productId}")
-    public void addToWishlist(
-            @PathVariable Long productId) {
+    /**
+     * Returns the number of wishlist items.
+     */
+    @GetMapping("/count")
+    public ResponseEntity<Map<String, Long>>
+            countWishlistItems() {
 
-        wishlistService.addToWishlist(
-                productId);
+        long count =
+                wishlistService
+                        .countWishlistItems();
+
+        return ResponseEntity.ok(
+                Map.of("count", count));
     }
 
-    @DeleteMapping("/remove/{productId}")
-    public void removeFromWishlist(
-            @PathVariable Long productId
-            ) {
+    /**
+     * Adds a product to the authenticated customer's wishlist.
+     */
+    @PostMapping("/{productId}")
+    public ResponseEntity<WishlistResponse>
+            addToWishlist(
+                    @PathVariable
+                    Long productId) {
+
+        WishlistResponse response =
+                wishlistService.addToWishlist(
+                        productId);
+
+        return ResponseEntity
+                .created(
+                        URI.create(
+                                "/api/wishlist/"
+                                        + productId))
+                .body(response);
+    }
+
+    /**
+     * Removes one product from the authenticated customer's wishlist.
+     */
+    @DeleteMapping("/{productId}")
+    public ResponseEntity<Void>
+            removeFromWishlist(
+                    @PathVariable
+                    Long productId) {
 
         wishlistService.removeFromWishlist(
-                productId
-                );
+                productId);
+
+        return ResponseEntity
+                .noContent()
+                .build();
     }
 
-    @DeleteMapping("/clear")
-    public void clearWishlist(
-            ) {
+    /**
+     * Clears the authenticated customer's wishlist.
+     */
+    @DeleteMapping
+    public ResponseEntity<Void> clearWishlist() {
 
-        wishlistService.clearWishlist(
-                );
+        wishlistService.clearWishlist();
+
+        return ResponseEntity
+                .noContent()
+                .build();
     }
 }
