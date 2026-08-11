@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
-public class PaymentSuccessRequest {
+public class VerifyPaymentRequest {
 
     @NotNull(message = "Application order ID is required")
     @Positive(message = "Application order ID must be greater than zero")
@@ -29,42 +29,55 @@ public class PaymentSuccessRequest {
             message = "Razorpay signature cannot exceed 255 characters")
     private String razorpaySignature;
 
-    public PaymentSuccessRequest() {
+    public VerifyPaymentRequest() {
     }
 
     public Long getApplicationOrderId() {
         return applicationOrderId;
     }
 
-    public void setApplicationOrderId(Long applicationOrderId) {
-        this.applicationOrderId = applicationOrderId;
+    public void setApplicationOrderId(
+            Long applicationOrderId) {
+
+        this.applicationOrderId =
+                applicationOrderId;
     }
 
     public String getRazorpayOrderId() {
         return razorpayOrderId;
     }
 
-    public void setRazorpayOrderId(String razorpayOrderId) {
-        this.razorpayOrderId = normalize(razorpayOrderId);
+    public void setRazorpayOrderId(
+            String razorpayOrderId) {
+
+        this.razorpayOrderId =
+                normalize(razorpayOrderId);
     }
 
     public String getRazorpayPaymentId() {
         return razorpayPaymentId;
     }
 
-    public void setRazorpayPaymentId(String razorpayPaymentId) {
-        this.razorpayPaymentId = normalize(razorpayPaymentId);
+    public void setRazorpayPaymentId(
+            String razorpayPaymentId) {
+
+        this.razorpayPaymentId =
+                normalize(razorpayPaymentId);
     }
 
     public String getRazorpaySignature() {
         return razorpaySignature;
     }
 
-    public void setRazorpaySignature(String razorpaySignature) {
-        this.razorpaySignature = normalize(razorpaySignature);
+    public void setRazorpaySignature(
+            String razorpaySignature) {
+
+        this.razorpaySignature =
+                normalize(razorpaySignature);
     }
 
     private String normalize(String value) {
+
         return value == null
                 ? null
                 : value.trim();

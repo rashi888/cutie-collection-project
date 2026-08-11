@@ -1,46 +1,60 @@
 package com.cutie.collection.backend.dto;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
 public class ReviewRequest {
 
-    private Long productId;
-
+    @NotNull(message = "Rating is required")
+    @Min(
+            value = 1,
+            message = "Rating must be at least 1")
+    @Max(
+            value = 5,
+            message = "Rating cannot exceed 5")
     private Integer rating;
 
+    @Size(
+            max = 1000,
+            message = "Review comment cannot exceed 1000 characters")
     private String comment;
 
-    private String userName;
+    public ReviewRequest() {
+    }
 
-	public Long getProductId() {
-		return productId;
-	}
+    public ReviewRequest(
+            Integer rating,
+            String comment) {
 
-	public void setProductId(Long productId) {
-		this.productId = productId;
-	}
+        this.rating = rating;
+        this.comment = comment;
+    }
 
-	public Integer getRating() {
-		return rating;
-	}
+    public Integer getRating() {
+        return rating;
+    }
 
-	public void setRating(Integer rating) {
-		this.rating = rating;
-	}
+    public void setRating(Integer rating) {
+        this.rating = rating;
+    }
 
-	public String getComment() {
-		return comment;
-	}
+    public String getComment() {
+        return comment;
+    }
 
-	public void setComment(String comment) {
-		this.comment = comment;
-	}
+    public void setComment(String comment) {
 
-	public String getUserName() {
-		return userName;
-	}
+        if (comment == null) {
+            this.comment = null;
+            return;
+        }
 
-	public void setUserName(String userName) {
-		this.userName = userName;
-	}
+        String normalizedComment = comment.trim();
 
-    
+        this.comment = normalizedComment.isEmpty()
+                ? null
+                : normalizedComment;
+    }
 }

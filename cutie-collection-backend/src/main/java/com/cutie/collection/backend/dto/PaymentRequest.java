@@ -1,19 +1,26 @@
 package com.cutie.collection.backend.dto;
 
-import java.math.BigDecimal;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
 public class PaymentRequest {
 
-    private BigDecimal amount;
+    @NotNull(message = "Application order ID is required")
+    @Positive(message = "Application order ID must be greater than zero")
+    private Long orderId;
 
     public PaymentRequest() {
     }
 
-    public BigDecimal getAmount() {
-        return amount;
+    public PaymentRequest(Long orderId) {
+        this.orderId = orderId;
     }
 
-    public void setAmount(BigDecimal amount) {
-        this.amount = amount;
+    public Long getOrderId() {
+        return orderId;
+    }
+
+    public void setOrderId(Long orderId) {
+        this.orderId = orderId;
     }
 }
