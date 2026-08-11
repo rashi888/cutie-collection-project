@@ -4,19 +4,20 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.data.jpa.repository.Modifying;
 
 import com.cutie.collection.backend.entity.WishlistItem;
 
 public interface WishlistRepository
         extends JpaRepository<WishlistItem, Long> {
 
-    List<WishlistItem> findByUserId(
+    List<WishlistItem> findAllByUserIdOrderByCreatedAtDesc(
             Long userId);
 
-    Optional<WishlistItem>
-    findByUserIdAndProductId(
+    Optional<WishlistItem> findByIdAndUserId(
+            Long wishlistItemId,
+            Long userId);
+
+    Optional<WishlistItem> findByUserIdAndProductId(
             Long userId,
             Long productId);
 
@@ -24,16 +25,13 @@ public interface WishlistRepository
             Long userId,
             Long productId);
 
+    long countByUserId(
+            Long userId);
 
-@Modifying
-@Transactional
-    void deleteByUserIdAndProductId(
+    long deleteByUserIdAndProductId(
             Long userId,
             Long productId);
 
-
-@Modifying
-@Transactional
-    void deleteByUserId(
+    long deleteAllByUserId(
             Long userId);
 }
