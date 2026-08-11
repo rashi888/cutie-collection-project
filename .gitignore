@@ -1,9 +1,29 @@
+# Maven / Java
+cutie-collection-backend/target/
+*.class
+*.log
+
+# Node / React
+cutie-collection-frontend/node_modules/
+cutie-collection-frontend/dist/
+cutie-collection-frontend/build/
+
 # Environment files containing real values
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+cutie-collection-backend/.env
+cutie-collection-frontend/.env
+cutie-collection-frontend/.env.local
 
-# Keep the safe template in Git
+# Keep safe templates
 !.env.example
+
+# IDE and operating-system files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
