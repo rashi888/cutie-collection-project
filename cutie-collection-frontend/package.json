@@ -1,13 +1,12 @@
 {
-  "name": "cutie-collection",
+  "name": "cutie-collection-frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
     "dev": "vite",
+    "start": "vite",
     "build": "vite build",
-    "test": "jest",
     "lint": "eslint .",
     "preview": "vite preview"
   },

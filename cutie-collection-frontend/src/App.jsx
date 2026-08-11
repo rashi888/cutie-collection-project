@@ -1,26 +1,27 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+} from "react-router-dom";
+
 import { ToastContainer } from "react-toastify";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
-import Home from "./pages/Home";
-
-import CategoryPage from "./pages/CategoryPage";
-import ManageCategories from "./pages/ManageCategories";
-
-import ProductPage from "./pages/ProductPage";
-import ManageProducts from "./pages/ManageProducts";
-
 import CartPage from "./pages/CartPage";
-import OrdersPage from "./pages/OrdersPage";
+import CategoryPage from "./pages/CategoryPage";
 import CheckoutPage from "./pages/CheckoutPage";
-
-import WishlistPage from "./pages/WishlistPage";
-
-import ProductDetailsPage from "./pages/ProductDetailsPage";
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import ManageCategories from "./pages/ManageCategories";
+import ManageProducts from "./pages/ManageProducts";
+import OrdersPage from "./pages/OrdersPage";
 import PaymentHistoryPage from "./pages/PaymentHistoryPage";
+import ProductDetailsPage from "./pages/ProductDetailsPage";
+import ProductPage from "./pages/ProductPage";
+import Signup from "./pages/Signup";
+import WishlistPage from "./pages/WishlistPage";
 
 import "react-toastify/dist/ReactToastify.css";
 import "./styles/toast.css";
@@ -29,41 +30,34 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Authentication */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
 
+        {/* Public pages */}
+        <Route path="/" element={<Home />} />
+        <Route path="/categories" element={<CategoryPage />} />
+        <Route path="/products" element={<ProductPage />} />
         <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <Home />
-            </ProtectedRoute>
-          }
+          path="/products/:productId"
+          element={<ProductDetailsPage />}
         />
 
-        <Route
-          path="/categories"
-          element={
-            <ProtectedRoute>
-              <CategoryPage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/products"
-          element={
-            <ProtectedRoute>
-              <ProductPage />
-            </ProtectedRoute>
-          }
-        />
-
+        {/* Authenticated customer pages */}
         <Route
           path="/cart"
           element={
             <ProtectedRoute>
               <CartPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/wishlist"
+          element={
+            <ProtectedRoute>
+              <WishlistPage />
             </ProtectedRoute>
           }
         />
@@ -86,10 +80,9 @@ function App() {
           }
         />
 
-        {/* Admin Only */}
-
+        {/* Administrator pages */}
         <Route
-          path="/manage-categories"
+          path="/admin/categories"
           element={
             <ProtectedRoute adminOnly>
               <ManageCategories />
@@ -98,7 +91,7 @@ function App() {
         />
 
         <Route
-          path="/manage-products"
+          path="/admin/products"
           element={
             <ProtectedRoute adminOnly>
               <ManageProducts />
@@ -107,27 +100,42 @@ function App() {
         />
 
         <Route
-          path="/wishlist"
+          path="/admin/payments"
           element={
-            <ProtectedRoute>
-              <WishlistPage />
+            <ProtectedRoute adminOnly>
+              <PaymentHistoryPage />
             </ProtectedRoute>
           }
+        />
+
+        {/* Temporary redirects for old frontend URLs */}
+        <Route
+          path="/manage-categories"
+          element={<Navigate to="/admin/categories" replace />}
         />
 
         <Route
-          path="/products/:id"
-          element={
-            <ProtectedRoute>
-              <ProductDetailsPage />
-            </ProtectedRoute>
-          }
+          path="/manage-products"
+          element={<Navigate to="/admin/products" replace />}
         />
 
-        <Route path="/payments" element={<PaymentHistoryPage />} />
+        <Route
+          path="/payments"
+          element={<Navigate to="/admin/payments" replace />}
+        />
+
+        {/* Unknown routes */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
-      <ToastContainer position="top-right" autoClose={3000} />
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        newestOnTop
+        closeOnClick
+        pauseOnHover
+        theme="light"
+      />
     </BrowserRouter>
   );
 }
