@@ -1,18 +1,20 @@
 package com.cutie.collection.backend.entity;
 
 import java.time.LocalDateTime;
+import java.util.Locale;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 
 @Entity
 @Table(name = "users")
@@ -22,93 +24,121 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "Name is required")
-    @Size(min = 2, max = 100, message = "Name must be between 2 and 100 characters")
-    @Column(nullable = false, length = 100)
+    @Column(
+            nullable = false,
+            length = 100)
     private String name;
 
-    @NotBlank(message = "Email is required")
-    @Email(message = "Invalid email format")
-    @Size(max = 150, message = "Email cannot exceed 150 characters")
-    @Column(nullable = false, unique = true, length = 150)
+    @Column(
+            nullable = false,
+            unique = true,
+            length = 150)
     private String email;
 
-    @NotBlank(message = "Password is required")
-    @Size(min = 6, message = "Password must contain at least 6 characters")
-    @Column(nullable = false, length = 255)
+    /*
+     * Prevents the password hash from appearing in JSON responses.
+     * API controllers should still return DTOs instead of User entities.
+     */
+    @JsonIgnore
+    @Column(
+            nullable = false,
+            length = 255)
     private String password;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Enumerated(EnumType.STRING)
+    @Column(
+            nullable = false,
+            length = 20)
+    private Role role = Role.CUSTOMER;
+
+    @Column(
+            nullable = false)
+    private boolean active = true;
+
+    @Column(
+            name = "created_at",
+            nullable = false,
+            updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @Column(
+            name = "updated_at",
+            nullable = false)
     private LocalDateTime updatedAt;
-    
-    private String role;
 
-    // Lifecycle Hooks
+    protected User() {
+    }
+
+    public User(
+            String name,
+            String email,
+            String password) {
+
+        setName(name);
+        setEmail(email);
+        setPassword(password);
+        this.role = Role.CUSTOMER;
+        this.active = true;
+    }
+
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+
+        LocalDateTime now = LocalDateTime.now();
+
+        this.createdAt = now;
+        this.updatedAt = now;
+
+        normalizeData();
+
+        if (this.role == null) {
+            this.role = Role.CUSTOMER;
+        }
     }
 
     @PreUpdate
     protected void onUpdate() {
+
         this.updatedAt = LocalDateTime.now();
+
+        normalizeData();
     }
 
-    // Constructors
-    public User() {
+    private void normalizeData() {
+
+        if (name != null) {
+            name = name.trim();
+        }
+
+        if (email != null) {
+            email = email
+                    .trim()
+                    .toLowerCase(Locale.ROOT);
+        }
     }
 
-    public User(String name, String email, String password) {
-        this.name = name;
-        this.email = email;
-        this.password = password;
-    }
-
-    // Getters and Setters
     public Long getId() {
         return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
     }
 
     public String getName() {
         return name;
     }
 
-    public void setName(String name) {
-        this.name = name;
-    }
-
     public String getEmail() {
         return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
     }
 
     public String getPassword() {
         return password;
     }
-    
 
-    public String getRole() {
-		return role;
-	}
+    public Role getRole() {
+        return role;
+    }
 
-	public void setRole(String role) {
-		this.role = role;
-	}
-
-	// Password should be stored in encrypted form (BCrypt)
-    public void setPassword(String password) {
-        this.password = password;
+    public boolean isActive() {
+        return active;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -119,12 +149,51 @@ public class User {
         return updatedAt;
     }
 
+    public void setName(String name) {
+
+        this.name = name == null
+                ? null
+                : name.trim();
+    }
+
+    public void setEmail(String email) {
+
+        this.email = email == null
+                ? null
+                : email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    /*
+     * The AuthService must pass an already encoded BCrypt password.
+     * Do not pass a raw password directly to this setter.
+     */
+    public void setPassword(String encodedPassword) {
+        this.password = encodedPassword;
+    }
+
+    public void setRole(Role role) {
+
+        if (role == null) {
+            throw new IllegalArgumentException(
+                    "User role cannot be null");
+        }
+
+        this.role = role;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
     @Override
     public String toString() {
+
         return "User{" +
                 "id=" + id +
                 ", name='" + name + '\'' +
                 ", email='" + email + '\'' +
+                ", role=" + role +
+                ", active=" + active +
                 ", createdAt=" + createdAt +
                 ", updatedAt=" + updatedAt +
                 '}';

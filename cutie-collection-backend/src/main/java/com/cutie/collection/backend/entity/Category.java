@@ -13,74 +13,151 @@ import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "categories")
-
 public class Category {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(
+            nullable = false,
+            unique = true,
+            length = 100)
     private String name;
 
+    @Column(length = 500)
     private String description;
 
-    @Column(name = "created_at")
+    @Column(nullable = false)
+    private boolean active = true;
+
+    @Column(
+            name = "created_at",
+            nullable = false,
+            updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @Column(
+            name = "updated_at",
+            nullable = false)
     private LocalDateTime updatedAt;
 
+    protected Category() {
+    }
+
+    public Category(
+            String name,
+            String description) {
+
+        setName(name);
+        setDescription(description);
+        this.active = true;
+    }
+
     @PrePersist
-    public void prePersist() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+    protected void onCreate() {
+
+        normalizeData();
+
+        LocalDateTime now = LocalDateTime.now();
+
+        createdAt = now;
+        updatedAt = now;
     }
 
     @PreUpdate
-    public void preUpdate() {
+    protected void onUpdate() {
+
+        normalizeData();
+
         updatedAt = LocalDateTime.now();
     }
 
-	public Long getId() {
-		return id;
-	}
+    private void normalizeData() {
 
-	public void setId(Long id) {
-		this.id = id;
-	}
+        if (name != null) {
+            name = name.trim();
+        }
 
-	public String getName() {
-		return name;
-	}
+        if (description != null) {
 
-	public void setName(String name) {
-		this.name = name;
-	}
+            description = description.trim();
 
-	public String getDescription() {
-		return description;
-	}
+            if (description.isEmpty()) {
+                description = null;
+            }
+        }
+    }
 
-	public void setDescription(String description) {
-		this.description = description;
-	}
+    public Long getId() {
+        return id;
+    }
 
-	public LocalDateTime getCreatedAt() {
-		return createdAt;
-	}
+    public String getName() {
+        return name;
+    }
 
-	public void setCreatedAt(LocalDateTime createdAt) {
-		this.createdAt = createdAt;
-	}
+    public String getDescription() {
+        return description;
+    }
 
-	public LocalDateTime getUpdatedAt() {
-		return updatedAt;
-	}
+    public boolean isActive() {
+        return active;
+    }
 
-	public void setUpdatedAt(LocalDateTime updatedAt) {
-		this.updatedAt = updatedAt;
-	}
-    
-    
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setName(String name) {
+
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Category name cannot be blank");
+        }
+
+        String normalizedName = name.trim();
+
+        if (normalizedName.length() > 100) {
+            throw new IllegalArgumentException(
+                    "Category name cannot exceed 100 characters");
+        }
+
+        this.name = normalizedName;
+    }
+
+    public void setDescription(String description) {
+
+        if (description == null) {
+            this.description = null;
+            return;
+        }
+
+        String normalizedDescription = description.trim();
+
+        if (normalizedDescription.length() > 500) {
+            throw new IllegalArgumentException(
+                    "Category description cannot exceed 500 characters");
+        }
+
+        this.description = normalizedDescription.isEmpty()
+                ? null
+                : normalizedDescription;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public void activate() {
+        this.active = true;
+    }
+
+    public void deactivate() {
+        this.active = false;
+    }
 }

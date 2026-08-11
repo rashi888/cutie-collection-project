@@ -1,6 +1,5 @@
 package com.cutie.collection.backend.entity;
 
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -18,120 +17,244 @@ import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "products")
-
 public class Product {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 255)
+    @Column(
+            nullable = false,
+            length = 255)
     private String name;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(
+            columnDefinition = "TEXT")
     private String description;
 
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Column(
+            nullable = false,
+            precision = 12,
+            scale = 2)
     private BigDecimal price;
 
-    @Column(name = "stock_quantity", nullable = false)
+    @Column(
+            name = "stock_quantity",
+            nullable = false)
     private Integer stockQuantity;
 
-    @Column(name = "image_url")
+    @Column(
+            name = "image_url",
+            length = 1000)
     private String imageUrl;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id", nullable = false)
+    @ManyToOne(
+            fetch = FetchType.LAZY,
+            optional = false)
+    @JoinColumn(
+            name = "category_id",
+            nullable = false)
     private Category category;
 
-    @Column(name = "created_at", nullable = false)
+    @Column(nullable = false)
+    private boolean active = true;
+
+    @Column(
+            name = "created_at",
+            nullable = false,
+            updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at", nullable = false)
+    @Column(
+            name = "updated_at",
+            nullable = false)
     private LocalDateTime updatedAt;
 
+    public Product() {
+    }
+
+    public Product(
+            String name,
+            String description,
+            BigDecimal price,
+            Integer stockQuantity,
+            String imageUrl,
+            Category category) {
+
+        setName(name);
+        setDescription(description);
+        setPrice(price);
+        setStockQuantity(stockQuantity);
+        setImageUrl(imageUrl);
+        setCategory(category);
+
+        this.active = true;
+    }
+
     @PrePersist
-    public void prePersist() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+    protected void onCreate() {
+
+        LocalDateTime now = LocalDateTime.now();
+
+        createdAt = now;
+        updatedAt = now;
     }
 
     @PreUpdate
-    public void preUpdate() {
-        this.updatedAt = LocalDateTime.now();
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 
-	public Long getId() {
-		return id;
-	}
+    public void reduceStock(Integer quantity) {
 
-	public void setId(Long id) {
-		this.id = id;
-	}
+        validateQuantity(quantity);
 
-	public String getName() {
-		return name;
-	}
+        if (stockQuantity < quantity) {
+            throw new IllegalStateException(
+                    "Insufficient stock for product: " + name);
+        }
 
-	public void setName(String name) {
-		this.name = name;
-	}
+        stockQuantity = stockQuantity - quantity;
+    }
 
-	public String getDescription() {
-		return description;
-	}
+    public void increaseStock(Integer quantity) {
 
-	public void setDescription(String description) {
-		this.description = description;
-	}
+        validateQuantity(quantity);
 
-	public BigDecimal getPrice() {
-		return price;
-	}
+        stockQuantity = stockQuantity + quantity;
+    }
 
-	public void setPrice(BigDecimal price) {
-		this.price = price;
-	}
+    private void validateQuantity(Integer quantity) {
 
-	public Integer getStockQuantity() {
-		return stockQuantity;
-	}
+        if (quantity == null || quantity <= 0) {
+            throw new IllegalArgumentException(
+                    "Quantity must be greater than zero");
+        }
+    }
 
-	public void setStockQuantity(Integer stockQuantity) {
-		this.stockQuantity = stockQuantity;
-	}
+    public Long getId() {
+        return id;
+    }
 
-	public String getImageUrl() {
-		return imageUrl;
-	}
+    public String getName() {
+        return name;
+    }
 
-	public void setImageUrl(String imageUrl) {
-		this.imageUrl = imageUrl;
-	}
+    public String getDescription() {
+        return description;
+    }
 
-	public Category getCategory() {
-		return category;
-	}
+    public BigDecimal getPrice() {
+        return price;
+    }
 
-	public void setCategory(Category category) {
-		this.category = category;
-	}
+    public Integer getStockQuantity() {
+        return stockQuantity;
+    }
 
-	public LocalDateTime getCreatedAt() {
-		return createdAt;
-	}
+    public String getImageUrl() {
+        return imageUrl;
+    }
 
-	public void setCreatedAt(LocalDateTime createdAt) {
-		this.createdAt = createdAt;
-	}
+    public Category getCategory() {
+        return category;
+    }
 
-	public LocalDateTime getUpdatedAt() {
-		return updatedAt;
-	}
+    public boolean isActive() {
+        return active;
+    }
 
-	public void setUpdatedAt(LocalDateTime updatedAt) {
-		this.updatedAt = updatedAt;
-	}
-    
-    
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setName(String name) {
+
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Product name cannot be blank");
+        }
+
+        String normalizedName = name.trim();
+
+        if (normalizedName.length() > 255) {
+            throw new IllegalArgumentException(
+                    "Product name cannot exceed 255 characters");
+        }
+
+        this.name = normalizedName;
+    }
+
+    public void setDescription(String description) {
+
+        if (description == null) {
+            this.description = null;
+            return;
+        }
+
+        String normalizedDescription = description.trim();
+
+        this.description = normalizedDescription.isEmpty()
+                ? null
+                : normalizedDescription;
+    }
+
+    public void setPrice(BigDecimal price) {
+
+        if (price == null
+                || price.compareTo(BigDecimal.ZERO) <= 0) {
+
+            throw new IllegalArgumentException(
+                    "Product price must be greater than zero");
+        }
+
+        this.price = price;
+    }
+
+    public void setStockQuantity(Integer stockQuantity) {
+
+        if (stockQuantity == null || stockQuantity < 0) {
+            throw new IllegalArgumentException(
+                    "Product stock quantity cannot be negative");
+        }
+
+        this.stockQuantity = stockQuantity;
+    }
+
+    public void setImageUrl(String imageUrl) {
+
+        if (imageUrl == null) {
+            this.imageUrl = null;
+            return;
+        }
+
+        String normalizedImageUrl = imageUrl.trim();
+
+        if (normalizedImageUrl.length() > 1000) {
+            throw new IllegalArgumentException(
+                    "Product image URL cannot exceed 1000 characters");
+        }
+
+        this.imageUrl = normalizedImageUrl.isEmpty()
+                ? null
+                : normalizedImageUrl;
+    }
+
+    public void setCategory(Category category) {
+
+        if (category == null) {
+            throw new IllegalArgumentException(
+                    "Product category cannot be null");
+        }
+
+        this.category = category;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
 }
