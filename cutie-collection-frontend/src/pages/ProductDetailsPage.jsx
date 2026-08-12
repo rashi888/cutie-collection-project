@@ -27,7 +27,7 @@ const INITIAL_REVIEW = {
   comment: "",
 };
 
-export default function ProductDetailPage() {
+export default function ProductDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -42,8 +42,10 @@ export default function ProductDetailPage() {
   const [loading, setLoading] =
     useState(true);
 
-  const [reviewsLoading, setReviewsLoading] =
-    useState(true);
+  const [
+    reviewsLoading,
+    setReviewsLoading,
+  ] = useState(true);
 
   const [adding, setAdding] =
     useState(false);
@@ -54,11 +56,15 @@ export default function ProductDetailPage() {
   const [wishlisted, setWishlisted] =
     useState(false);
 
-  const [wishlistLoading, setWishlistLoading] =
-    useState(false);
+  const [
+    wishlistLoading,
+    setWishlistLoading,
+  ] = useState(false);
 
-  const [submittingReview, setSubmittingReview] =
-    useState(false);
+  const [
+    submittingReview,
+    setSubmittingReview,
+  ] = useState(false);
 
   const [imageError, setImageError] =
     useState(false);
@@ -151,9 +157,10 @@ export default function ProductDetailPage() {
         setReviewsLoading(true);
 
         const response =
-          await ReviewService.getReviewsByProduct(
-            productId
-          );
+          await ReviewService
+            .getReviewsByProduct(
+              productId
+            );
 
         const loadedReviews =
           Array.isArray(response.data)
@@ -162,12 +169,17 @@ export default function ProductDetailPage() {
 
         setReviews(
           [...loadedReviews].sort(
-            (firstReview, secondReview) =>
+            (
+              firstReview,
+              secondReview
+            ) =>
               new Date(
-                secondReview.createdAt || 0
+                secondReview.createdAt ||
+                  0
               ) -
               new Date(
-                firstReview.createdAt || 0
+                firstReview.createdAt ||
+                  0
               )
           )
         );
@@ -185,8 +197,8 @@ export default function ProductDetailPage() {
     [productId]
   );
 
-  const loadCustomerState = useCallback(
-    async () => {
+  const loadCustomerState =
+    useCallback(async () => {
       if (!isAuthenticated) {
         setAdded(false);
         setWishlisted(false);
@@ -233,13 +245,11 @@ export default function ProductDetailPage() {
         );
       } catch (error) {
         console.error(
-          "Unable to load customer product state:",
+          "Unable to load cart and wishlist state:",
           error
         );
       }
-    },
-    [isAuthenticated, productId]
-  );
+    }, [isAuthenticated, productId]);
 
   useEffect(() => {
     loadProduct();
@@ -290,7 +300,7 @@ export default function ProductDetailPage() {
         setAdding(true);
 
         await CartService.addItem({
-          productId: product.id,
+          productId: Number(product.id),
           quantity: 1,
         });
 
@@ -338,13 +348,16 @@ export default function ProductDetailPage() {
         return;
       }
 
+      const normalizedProductId =
+        Number(product.id);
+
       try {
         setWishlistLoading(true);
 
         if (wishlisted) {
           await WishlistService
             .removeFromWishlist(
-              product.id
+              normalizedProductId
             );
 
           setWishlisted(false);
@@ -355,7 +368,7 @@ export default function ProductDetailPage() {
         } else {
           await WishlistService
             .addToWishlist(
-              product.id
+              normalizedProductId
             );
 
           setWishlisted(true);
@@ -454,10 +467,6 @@ export default function ProductDetailPage() {
     try {
       setSubmittingReview(true);
 
-      /*
-       * The product ID comes from the URL.
-       * The backend gets the reviewer from JWT.
-       */
       await ReviewService.addReview(
         productId,
         {
@@ -557,9 +566,7 @@ export default function ProductDetailPage() {
       <nav style={S.navbar}>
         <Link
           to="/"
-          style={{
-            textDecoration: "none",
-          }}
+          style={S.brandLink}
         >
           <div style={S.navBrand}>
             <span
@@ -694,39 +701,21 @@ export default function ProductDetailPage() {
                 setImgHovered(false)
               }
             >
-              {product.imageUrl &&
-              !imageError ? (
-                <img
-                  src={product.imageUrl}
-                  alt={product.name}
-                  style={{
-                    ...S.productImage,
-                    transform: imgHovered
-                      ? "scale(1.05)"
-                      : "scale(1)",
-                  }}
-                  loading="lazy"
-                  onError={() =>
-                    setImageError(true)
-                  }
-                />
-              ) : (
-                <div
-                  style={{
-                    ...S.imageFallback,
-                    display: "flex",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: "100px",
-                    }}
-                    aria-hidden="true"
-                  >
-                    🛍️
-                  </span>
-                </div>
-              )}
+              {product.imageUrl && !imageError ? (
+  <img
+    src={product.imageUrl}
+    alt={product.name || "Product"}   onError={() => setImageError(true)}
+  />
+) : (
+  <div style={S.imageFallback}>
+    <span
+      style={{ fontSize: "100px" }}
+      aria-hidden="true"
+    >
+      🛍️
+    </span>
+  </div>
+)}
             </div>
 
             {product.categoryName && (
@@ -761,7 +750,7 @@ export default function ProductDetailPage() {
               </span>
 
               <div
-                style={S.freeDeliveryTag}
+                style={S.secureCheckoutTag}
               >
                 🔒 Secure Checkout
               </div>
@@ -769,8 +758,8 @@ export default function ProductDetailPage() {
 
             <p style={S.priceSub}>
               Final price and stock are
-              revalidated by the backend
-              during order placement.
+              revalidated securely during
+              order placement.
             </p>
 
             <div style={S.divider} />
@@ -1076,55 +1065,63 @@ export default function ProductDetailPage() {
               product.
             </p>
           ) : (
-            reviews.map((savedReview) => (
-              <article
-                key={savedReview.id}
-                style={S.reviewItem}
-              >
-                <div
-                  style={
-                    S.reviewItemHeader
-                  }
+            reviews.map(
+              (savedReview) => (
+                <article
+                  key={savedReview.id}
+                  style={S.reviewItem}
                 >
-                  <h4
+                  <div
                     style={
-                      S.reviewerName
+                      S.reviewItemHeader
                     }
                   >
-                    {savedReview.userName ||
-                      savedReview.reviewerName ||
-                      "Verified Customer"}
-                  </h4>
-
-                  {savedReview.createdAt && (
-                    <span
+                    <h4
                       style={
-                        S.reviewDate
+                        S.reviewerName
                       }
                     >
-                      {new Date(
-                        savedReview.createdAt
-                      ).toLocaleDateString(
-                        "en-IN"
-                      )}
-                    </span>
-                  )}
-                </div>
+                      {savedReview.userName ||
+                        savedReview.reviewerName ||
+                        "Verified Customer"}
+                    </h4>
 
-                <p style={S.reviewStars}>
-                  {"⭐".repeat(
-                    Number(
-                      savedReview.rating ||
-                        0
-                    )
-                  )}
-                </p>
+                    {savedReview.createdAt && (
+                      <span
+                        style={
+                          S.reviewDate
+                        }
+                      >
+                        {new Date(
+                          savedReview.createdAt
+                        ).toLocaleDateString(
+                          "en-IN"
+                        )}
+                      </span>
+                    )}
+                  </div>
 
-                <p style={S.reviewComment}>
-                  {savedReview.comment}
-                </p>
-              </article>
-            ))
+                  <p style={S.reviewStars}>
+                    {"⭐".repeat(
+                      Math.max(
+                        0,
+                        Math.min(
+                          5,
+                          Number(
+                            savedReview.rating ||
+                              0
+                          )
+                        )
+                      )
+                    )}
+                  </p>
+
+                  <p style={S.reviewComment}>
+                    {savedReview.comment}
+                  </p>
+                </article>
+              )
+            )
           )}
         </div>
       </section>
@@ -1139,3 +1136,716 @@ export default function ProductDetailPage() {
     </div>
   );
 }
+
+const HIGHLIGHTS = [
+  {
+    icon: "📦",
+    title: "Stock Validation",
+    sub: "Availability is checked before ordering",
+  },
+  {
+    icon: "🔒",
+    title: "Secure Payment",
+    sub: "Backend-verified Razorpay checkout",
+  },
+  {
+    icon: "💳",
+    title: "Trusted Pricing",
+    sub: "Final amount is calculated by the backend",
+  },
+  {
+    icon: "🌸",
+    title: "Cutie Collection",
+    sub: "Carefully selected products",
+  },
+];
+
+const TRUST_BADGES = [
+  "✅ Product Verified",
+  "📦 Stock Checked",
+  "💳 Secure Payment",
+];
+
+const keyframes = `
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes dotBounce {
+    0%, 80%, 100% {
+      transform: scale(0.6);
+      opacity: 0.4;
+    }
+
+    40% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes spinFloat {
+    0% {
+      transform: rotate(0deg) scale(1);
+    }
+
+    50% {
+      transform: rotate(180deg) scale(1.15);
+    }
+
+    100% {
+      transform: rotate(360deg) scale(1);
+    }
+  }
+
+  .pdp-cart-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px rgba(233,30,140,0.45);
+  }
+
+  .pdp-wishlist-btn:hover:not(:disabled) {
+    background: #fce4ec;
+    border-color: #e91e8c;
+    transform: scale(1.08);
+  }
+
+  .pdp-buynow-btn:hover:not(:disabled) {
+    background: #1a1a1a;
+    transform: translateY(-2px);
+  }
+
+  .pdp-highlight-row:hover {
+    background: #fce4ec;
+    border-color: #f8bbd0;
+  }
+
+  .pdp-back:hover,
+  .pdp-breadcrumb-a:hover {
+    color: #e91e8c;
+  }
+`;
+
+const S = {
+  page: {
+    minHeight: "100vh",
+    background: "#ffffff",
+    color: "#333333",
+    fontFamily: "'Poppins', sans-serif",
+  },
+
+  loadingBox: {
+    display: "flex",
+    minHeight: "80vh",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "column",
+    gap: "16px",
+  },
+
+  loadingSpinner: {
+    display: "block",
+    fontSize: "64px",
+    animation:
+      "spinFloat 1.8s linear infinite",
+  },
+
+  loadingText: {
+    margin: 0,
+    color: "#c85f89",
+    fontSize: "16px",
+    fontWeight: "500",
+  },
+
+  loadingDots: {
+    display: "flex",
+    gap: "8px",
+  },
+
+  dot: {
+    display: "inline-block",
+    width: "10px",
+    height: "10px",
+    borderRadius: "50%",
+    background:
+      "linear-gradient(135deg, #f06292, #e91e8c)",
+    animation:
+      "dotBounce 1.2s ease-in-out infinite",
+  },
+
+  navbar: {
+    position: "sticky",
+    top: 0,
+    zIndex: 100,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "16px",
+    padding: "16px 5%",
+    borderBottom: "1.5px solid #fce4ec",
+    background: "rgba(255,255,255,0.96)",
+    boxShadow:
+      "0 2px 16px rgba(244,143,177,0.1)",
+    backdropFilter: "blur(12px)",
+    flexWrap: "wrap",
+  },
+
+  brandLink: {
+    color: "inherit",
+    textDecoration: "none",
+  },
+
+  navBrand: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+  },
+
+  navLogo: {
+    fontSize: "28px",
+  },
+
+  navTitle: {
+    color: "#e91e8c",
+    fontSize: "20px",
+    fontWeight: "700",
+  },
+
+  navLinks: {
+    display: "flex",
+    alignItems: "center",
+    gap: "22px",
+    flexWrap: "wrap",
+  },
+
+  navLink: {
+    paddingBottom: "3px",
+    borderBottom:
+      "2px solid transparent",
+    color: "#a81750",
+    fontSize: "13px",
+    fontWeight: "500",
+    textDecoration: "none",
+  },
+
+  navLinkActive: {
+    borderBottom:
+      "2px solid #e91e8c",
+    color: "#e91e8c",
+    fontWeight: "700",
+  },
+
+  logoutBtn: {
+    padding: "8px 20px",
+    border: "none",
+    borderRadius: "20px",
+    background:
+      "linear-gradient(135deg, #f06292, #e91e8c)",
+    boxShadow:
+      "0 4px 14px rgba(233,30,140,0.28)",
+    color: "#ffffff",
+    cursor: "pointer",
+    fontFamily: "inherit",
+    fontSize: "13px",
+    fontWeight: "600",
+  },
+
+  loginLink: {
+    padding: "8px 20px",
+    borderRadius: "20px",
+    background:
+      "linear-gradient(135deg, #f06292, #e91e8c)",
+    color: "#ffffff",
+    fontSize: "13px",
+    fontWeight: "600",
+    textDecoration: "none",
+  },
+
+  breadcrumb: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "14px 5%",
+    borderBottom: "1px solid #fce4ec",
+    background:
+      "linear-gradient(to right, #fff5f8, #ffffff)",
+    fontSize: "13px",
+    flexWrap: "wrap",
+  },
+
+  breadcrumbLink: {
+    color: "#b85d82",
+    fontWeight: "500",
+    textDecoration: "none",
+  },
+
+  breadcrumbSep: {
+    color: "#f8bbd0",
+  },
+
+  breadcrumbCurrent: {
+    color: "#e91e8c",
+    fontWeight: "600",
+    overflowWrap: "anywhere",
+  },
+
+  container: {
+    width: "min(1200px, calc(100% - 32px))",
+    margin: "0 auto",
+    padding: "48px 0",
+  },
+
+  layout: {
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(auto-fit, minmax(300px, 1fr))",
+    gap: "50px",
+    alignItems: "flex-start",
+  },
+
+  imageSection: {
+    position: "relative",
+    minWidth: 0,
+  },
+
+  imageBox: {
+    display: "flex",
+    height: "440px",
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    border: "2px solid #f8bbd0",
+    borderRadius: "28px",
+    background:
+      "linear-gradient(135deg, #fff0f5, #fce4ec)",
+    transition:
+      "box-shadow 0.3s ease",
+  },
+
+  productImage: {
+  width: "100%",
+  height: "100%",
+  borderRadius: "28px",
+  objectFit: "cover",
+  transition: "transform 0.4s ease",
+},
+
+  imageFallback: {
+    display: "flex",
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  categoryBadge: {
+    position: "absolute",
+    top: "16px",
+    left: "16px",
+    padding: "6px 16px",
+    borderRadius: "20px",
+    background:
+      "linear-gradient(135deg, #f06292, #e91e8c)",
+    color: "#ffffff",
+    fontSize: "11px",
+    fontWeight: "700",
+  },
+
+  stockTagIn: {
+    position: "absolute",
+    right: "16px",
+    bottom: "16px",
+    padding: "5px 14px",
+    border: "1.5px solid #c8e6c9",
+    borderRadius: "20px",
+    background: "#f0fff4",
+    color: "#2e7d32",
+    fontSize: "11px",
+    fontWeight: "700",
+  },
+
+  stockTagOut: {
+    position: "absolute",
+    right: "16px",
+    bottom: "16px",
+    padding: "5px 14px",
+    border: "1.5px solid #ffcdd2",
+    borderRadius: "20px",
+    background: "#fff5f5",
+    color: "#c62828",
+    fontSize: "11px",
+    fontWeight: "700",
+  },
+
+  detailsSection: {
+    display: "flex",
+    minWidth: 0,
+    flexDirection: "column",
+    gap: "20px",
+    animation:
+      "fadeInUp 0.5s ease",
+  },
+
+  productName: {
+    margin: 0,
+    color: "#2d2d2d",
+    fontSize:
+      "clamp(26px, 5vw, 34px)",
+    fontWeight: "800",
+    lineHeight: 1.3,
+    overflowWrap: "anywhere",
+  },
+
+  priceRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
+    flexWrap: "wrap",
+  },
+
+  price: {
+    color: "#e91e8c",
+    fontSize:
+      "clamp(30px, 5vw, 40px)",
+    fontWeight: "800",
+  },
+
+  secureCheckoutTag: {
+    padding: "5px 14px",
+    border: "1px solid #c8e6c9",
+    borderRadius: "20px",
+    background: "#e8f5e9",
+    color: "#2e7d32",
+    fontSize: "11px",
+    fontWeight: "600",
+  },
+
+  priceSub: {
+    margin: 0,
+    color: "#777777",
+    fontSize: "11px",
+    lineHeight: 1.6,
+  },
+
+  divider: {
+    height: "1.5px",
+    borderRadius: "2px",
+    background:
+      "linear-gradient(to right, #fce4ec, #fff5f8, #fce4ec)",
+  },
+
+  descBox: {
+    padding: "22px",
+    border: "1.5px solid #f8bbd0",
+    borderRadius: "18px",
+    background:
+      "linear-gradient(135deg, #fff0f5, #fce4ec)",
+  },
+
+  descTitle: {
+    margin: "0 0 10px",
+    color: "#a81750",
+    fontSize: "13px",
+    fontWeight: "700",
+  },
+
+  desc: {
+    margin: 0,
+    color: "#666666",
+    fontSize: "13px",
+    lineHeight: 1.75,
+  },
+
+  highlights: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+  },
+
+  highlight: {
+    display: "flex",
+    alignItems: "center",
+    gap: "14px",
+    padding: "13px 18px",
+    border: "1.5px solid #fce4ec",
+    borderRadius: "14px",
+    background: "#fff5f8",
+  },
+
+  highlightIcon: {
+    flexShrink: 0,
+    fontSize: "20px",
+  },
+
+  highlightTitle: {
+    color: "#333333",
+    fontSize: "13px",
+    fontWeight: "700",
+  },
+
+  highlightSub: {
+    marginTop: "2px",
+    color: "#777777",
+    fontSize: "10px",
+  },
+
+  actions: {
+    display: "flex",
+    gap: "12px",
+  },
+
+  addToCartBtn: {
+    flex: 1,
+    padding: "16px 24px",
+    border: "none",
+    borderRadius: "16px",
+    background:
+      "linear-gradient(135deg, #f06292, #e91e8c)",
+    boxShadow:
+      "0 6px 22px rgba(233,30,140,0.32)",
+    color: "#ffffff",
+    fontFamily: "inherit",
+    fontSize: "14px",
+    fontWeight: "700",
+  },
+
+  goToCartBtn: {
+    flex: 1,
+    padding: "16px 24px",
+    border: "none",
+    borderRadius: "16px",
+    background:
+      "linear-gradient(135deg, #43a047, #2e7d32)",
+    color: "#ffffff",
+    cursor: "pointer",
+    fontFamily: "inherit",
+    fontSize: "14px",
+    fontWeight: "700",
+  },
+
+  wishlistBtn: {
+    flexShrink: 0,
+    padding: "16px 20px",
+    border: "1.5px solid #f8bbd0",
+    borderRadius: "16px",
+    background: "#fff5f8",
+    color: "#e91e8c",
+    cursor: "pointer",
+    fontSize: "20px",
+  },
+
+  wishlistBtnActive: {
+    flexShrink: 0,
+    padding: "16px 20px",
+    border: "1.5px solid #e91e8c",
+    borderRadius: "16px",
+    background:
+      "linear-gradient(135deg, #fff0f5, #fce4ec)",
+    color: "#e91e8c",
+    cursor: "pointer",
+    fontSize: "20px",
+  },
+
+  buyNowBtn: {
+    width: "100%",
+    padding: "16px",
+    border: "none",
+    borderRadius: "16px",
+    background: "#2d2d2d",
+    color: "#ffffff",
+    cursor: "pointer",
+    fontFamily: "inherit",
+    fontSize: "14px",
+    fontWeight: "700",
+  },
+
+  trustRow: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+  },
+
+  trustBadge: {
+    padding: "5px 14px",
+    border: "1px solid #f8bbd0",
+    borderRadius: "20px",
+    background: "#fff5f8",
+    color: "#a81750",
+    fontSize: "10px",
+    fontWeight: "600",
+  },
+
+  backLink: {
+    display: "inline-block",
+    color: "#b85d82",
+    fontSize: "12px",
+    fontWeight: "600",
+    textDecoration: "none",
+  },
+
+  reviewsContainer: {
+    width: "min(1200px, calc(100% - 32px))",
+    margin: "30px auto",
+  },
+
+  reviewsCard: {
+    padding: "30px",
+    border: "2px solid #fce4ec",
+    borderRadius: "24px",
+    background: "#ffffff",
+  },
+
+  reviewsTitle: {
+    margin: "0 0 20px",
+    color: "#e91e8c",
+  },
+
+  reviewForm: {
+    display: "flex",
+    marginBottom: "30px",
+    padding: "20px",
+    flexDirection: "column",
+    gap: "10px",
+    borderRadius: "18px",
+    background: "#fff5f8",
+  },
+
+  reviewFormTitle: {
+    margin: "0 0 5px",
+    color: "#a81750",
+  },
+
+  reviewLabel: {
+    color: "#a81750",
+    fontSize: "12px",
+    fontWeight: "700",
+  },
+
+  reviewInput: {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "12px",
+    border: "1px solid #f8bbd0",
+    borderRadius: "12px",
+    background: "#ffffff",
+    fontFamily: "inherit",
+  },
+
+  reviewTextarea: {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "12px",
+    border: "1px solid #f8bbd0",
+    borderRadius: "12px",
+    resize: "vertical",
+    background: "#ffffff",
+    fontFamily: "inherit",
+  },
+
+  reviewCharacterCount: {
+    alignSelf: "flex-end",
+    color: "#777777",
+    fontSize: "10px",
+  },
+
+  reviewSubmitButton: {
+    alignSelf: "flex-start",
+    padding: "12px 24px",
+    border: "none",
+    borderRadius: "12px",
+    background:
+      "linear-gradient(135deg, #f06292, #e91e8c)",
+    color: "#ffffff",
+    fontFamily: "inherit",
+    fontWeight: "600",
+  },
+
+  reviewLoginBox: {
+    marginBottom: "30px",
+    padding: "20px",
+    border: "1px solid #f8bbd0",
+    borderRadius: "16px",
+    background: "#fff5f8",
+    textAlign: "center",
+  },
+
+  reviewLoginText: {
+    margin: "0 0 12px",
+    color: "#777777",
+    fontSize: "13px",
+  },
+
+  reviewLoginLink: {
+    display: "inline-flex",
+    padding: "10px 18px",
+    borderRadius: "12px",
+    background:
+      "linear-gradient(135deg, #f06292, #e91e8c)",
+    color: "#ffffff",
+    fontSize: "12px",
+    fontWeight: "700",
+    textDecoration: "none",
+  },
+
+  reviewListTitle: {
+    margin: "0 0 20px",
+    color: "#a81750",
+  },
+
+  reviewStatusText: {
+    color: "#777777",
+    fontSize: "13px",
+  },
+
+  reviewItem: {
+    marginBottom: "16px",
+    padding: "16px",
+    border: "1px solid #f8bbd0",
+    borderRadius: "18px",
+    background: "#fffafc",
+  },
+
+  reviewItemHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "12px",
+    flexWrap: "wrap",
+  },
+
+  reviewerName: {
+    margin: 0,
+    color: "#e91e8c",
+  },
+
+  reviewDate: {
+    color: "#777777",
+    fontSize: "10px",
+  },
+
+  reviewStars: {
+    margin: "8px 0",
+  },
+
+  reviewComment: {
+    margin: 0,
+    color: "#555555",
+    fontSize: "13px",
+    lineHeight: 1.6,
+  },
+
+  footer: {
+    marginTop: "70px",
+    padding: "28px",
+    background: "#2d2d2d",
+    color: "#999999",
+    fontSize: "12px",
+    textAlign: "center",
+  },
+};

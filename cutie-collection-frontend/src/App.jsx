@@ -31,15 +31,34 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* Authentication */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+        <Route
+          path="/login"
+          element={<Login />}
+        />
+
+        <Route
+          path="/signup"
+          element={<Signup />}
+        />
 
         {/* Public pages */}
-        <Route path="/" element={<Home />} />
-        <Route path="/categories" element={<CategoryPage />} />
-        <Route path="/products" element={<ProductPage />} />
         <Route
-          path="/products/:productId"
+          path="/"
+          element={<Home />}
+        />
+
+        <Route
+          path="/categories"
+          element={<CategoryPage />}
+        />
+
+        <Route
+          path="/products"
+          element={<ProductPage />}
+        />
+
+        <Route
+          path="/products/:id"
           element={<ProductDetailsPage />}
         />
 
@@ -108,24 +127,47 @@ function App() {
           }
         />
 
-        {/* Temporary redirects for old frontend URLs */}
+        {/* Redirect old frontend routes */}
         <Route
           path="/manage-categories"
-          element={<Navigate to="/admin/categories" replace />}
+          element={
+            <Navigate
+              to="/admin/categories"
+              replace
+            />
+          }
         />
 
         <Route
           path="/manage-products"
-          element={<Navigate to="/admin/products" replace />}
+          element={
+            <Navigate
+              to="/admin/products"
+              replace
+            />
+          }
         />
 
         <Route
           path="/payments"
-          element={<Navigate to="/admin/payments" replace />}
+          element={
+            <Navigate
+              to="/admin/payments"
+              replace
+            />
+          }
         />
 
         {/* Unknown routes */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route
+          path="*"
+          element={
+            <Navigate
+              to="/"
+              replace
+            />
+          }
+        />
       </Routes>
 
       <ToastContainer
