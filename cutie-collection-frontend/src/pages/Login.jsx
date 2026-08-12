@@ -1,100 +1,242 @@
-import { useState,useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import {
+  useEffect,
+  useState,
+} from "react";
 
-import { showSuccess, showError } from "../utils/toastUtils";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+
+import AuthService from "../api/AuthService";
+
+import {
+  showError,
+  showSuccess,
+} from "../utils/toastUtils";
+
+const INITIAL_FORM = {
+  email: "",
+  password: "",
+};
 
 export default function Login() {
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-  });
+  const [form, setForm] =
+    useState(INITIAL_FORM);
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [
+    showPassword,
+    setShowPassword,
+  ] = useState(false);
+
+  const [loading, setLoading] =
+    useState(false);
 
   const navigate = useNavigate();
-
-  const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
-  };
+  const location = useLocation();
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token =
+      localStorage.getItem("token");
 
     if (token) {
-      navigate("/");
+      navigate("/", {
+        replace: true,
+      });
     }
-  }, []);
+  }, [navigate]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleChange = (event) => {
+    const { name, value } =
+      event.target;
 
-    if (!form.email || !form.password) {
-      showError("Please fill in all fields 🌷");
+    setForm((currentForm) => ({
+      ...currentForm,
+      value,
+    }));
+  };
+
+  const validateForm = () => {
+    const email = form.email.trim();
+
+    if (!email) {
+      showError(
+        "Please enter your email address"
+      );
+      return false;
+    }
+
+    if (!form.password) {
+      showError(
+        "Please enter your password"
+      );
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSubmit = async (
+    event
+  ) => {
+    event.preventDefault();
+
+    if (!validateForm()) {
       return;
     }
 
     try {
       setLoading(true);
 
-      const response = await axios.post(
-        "http://localhost:8080/api/auth/login",
-        {
-          email: form.email,
+      const response =
+        await AuthService.login({
+          email: form.email
+            .trim()
+            .toLowerCase(),
           password: form.password,
-        },
+        });
+
+      const authData = response.data;
+
+      if (!authData?.accessToken) {
+        throw new Error(
+          "The access token was missing from the login response"
+        );
+      }
+
+      const authenticatedUser = {
+        id: authData.userId,
+        name: authData.name,
+        email: authData.email,
+        role: authData.role,
+      };
+
+      localStorage.setItem(
+        "token",
+        authData.accessToken
       );
 
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("username", response.data.name);
-      localStorage.setItem("role", response.data.role); // 🆕 save role: "ADMIN" or "USER"
+      localStorage.setItem(
+        "user",
+        JSON.stringify(
+          authenticatedUser
+        )
+      );
 
-      showSuccess("Welcome back, Cutie! 💕");
+      /*
+       * Remove values used by the previous
+       * frontend authentication structure.
+       */
+      localStorage.removeItem(
+        "username"
+      );
 
-      setTimeout(() => {
-        navigate("/");
-      }, 1500);
+      localStorage.removeItem("role");
+
+      showSuccess(
+        `Welcome back, ${
+          authData.name || "Cutie"
+        }!`
+      );
+
+      const requestedPath =
+        location.state?.from;
+
+      const destination =
+        requestedPath ||
+        (authData.role === "ADMIN"
+          ? "/admin/products"
+          : "/");
+
+      navigate(destination, {
+        replace: true,
+      });
     } catch (error) {
-      const message =
-        error.response?.data?.message || "Invalid email or password 💔";
-
-      showError(message);
+      showError(
+        error,
+        "Invalid email or password"
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={styles.wrapper}>
-      <div style={styles.blobTop} />
-      <div style={styles.blobBottom} />
+    <main style={styles.wrapper}>
+      <div
+        style={styles.blobTop}
+        aria-hidden="true"
+      />
 
-      <div style={styles.card}>
+      <div
+        style={styles.blobBottom}
+        aria-hidden="true"
+      />
+
+      <section
+        style={styles.card}
+        aria-labelledby="login-heading"
+      >
         {/* Header */}
-        <div style={styles.logoArea}>
-          <span style={styles.logoIcon}>🌸</span>
-          <h1 style={styles.brandName}>The Cutie Collection</h1>
-          <p style={styles.tagline}>Welcome back, cutie! 💕</p>
-        </div>
+        <header style={styles.logoArea}>
+          <Link
+            to="/"
+            style={styles.homeLink}
+            aria-label="Go to homepage"
+          >
+            <span
+              style={styles.logoIcon}
+              aria-hidden="true"
+            >
+              🌸
+            </span>
+          </Link>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} style={styles.form}>
+          <h1
+            id="login-heading"
+            style={styles.brandName}
+          >
+            The Cutie Collection
+          </h1>
+
+          <p style={styles.tagline}>
+            Welcome back, cutie!
+          </p>
+        </header>
+
+        {/* Login form */}
+        <form
+          onSubmit={handleSubmit}
+          style={styles.form}
+          noValidate
+        >
           <div style={styles.inputGroup}>
-            <label style={styles.label}>Email</label>
+            <label
+              htmlFor="login-email"
+              style={styles.label}
+            >
+              Email
+            </label>
 
             <div style={styles.inputWrapper}>
-              <span style={styles.inputIcon}>✉️</span>
+              <span
+                style={styles.inputIcon}
+                aria-hidden="true"
+              >
+                ✉️
+              </span>
 
               <input
+                id="login-email"
                 type="email"
                 name="email"
                 placeholder="hello@cutie.com"
                 value={form.email}
                 onChange={handleChange}
+                autoComplete="email"
+                maxLength={150}
+                disabled={loading}
                 required
                 style={styles.input}
               />
@@ -102,85 +244,132 @@ export default function Login() {
           </div>
 
           <div style={styles.inputGroup}>
-            <label style={styles.label}>Password</label>
+            <label
+              htmlFor="login-password"
+              style={styles.label}
+            >
+              Password
+            </label>
 
             <div style={styles.inputWrapper}>
-              <span style={styles.inputIcon}>🔒</span>
+              <span
+                style={styles.inputIcon}
+                aria-hidden="true"
+              >
+                🔒
+              </span>
 
               <input
-                type={showPassword ? "text" : "password"}
+                id="login-password"
+                type={
+                  showPassword
+                    ? "text"
+                    : "password"
+                }
                 name="password"
-                placeholder="Your secret password"
+                placeholder="Enter your password"
                 value={form.password}
                 onChange={handleChange}
+                autoComplete="current-password"
+                maxLength={100}
+                disabled={loading}
                 required
                 style={styles.input}
               />
 
-              <span
-                style={styles.toggleEye}
-                onClick={() => setShowPassword(!showPassword)}
+              <button
+                type="button"
+                style={styles.passwordToggle}
+                onClick={() =>
+                  setShowPassword(
+                    (currentValue) =>
+                      !currentValue
+                  )
+                }
+                disabled={loading}
+                aria-label={
+                  showPassword
+                    ? "Hide password"
+                    : "Show password"
+                }
+                aria-pressed={showPassword}
               >
-                {showPassword ? "🙈" : "👁️"}
-              </span>
+                {showPassword
+                  ? "🙈"
+                  : "👁️"}
+              </button>
             </div>
-          </div>
-
-          <div style={styles.forgotRow}>
-            <Link to="/forgot-password" style={styles.forgotLink}>
-              Forgot password?
-            </Link>
           </div>
 
           <button
             type="submit"
             disabled={loading}
             style={{
-              ...styles.btn,
-              opacity: loading ? 0.7 : 1,
-              cursor: loading ? "not-allowed" : "pointer",
+              ...styles.submitButton,
+              opacity: loading
+                ? 0.65
+                : 1,
+              cursor: loading
+                ? "not-allowed"
+                : "pointer",
             }}
           >
-            {loading ? "Logging in..." : "Login 🌷"}
+            {loading
+              ? "Logging in..."
+              : "Login 🌷"}
           </button>
         </form>
 
-        {/* Divider */}
-        <div style={styles.divider}>
-          <span style={styles.dividerLine} />
-          <span style={styles.dividerText}>or continue with</span>
-          <span style={styles.dividerLine} />
-        </div>
+        <div style={styles.securityNote}>
+          <span aria-hidden="true">
+            🔒
+          </span>
 
-        {/* Social */}
-        <div style={styles.socialRow}>
-          <button style={styles.socialBtn}>🌐 Google</button>
-
-          <button style={styles.socialBtn}>🍎 Apple</button>
+          <span>
+            Your password is transmitted
+            securely and verified using
+            BCrypt-protected credentials.
+          </span>
         </div>
 
         {/* Footer */}
         <p style={styles.footerText}>
-          Don't have an account?{" "}
-          <Link to="/signup" style={styles.footerLink}>
+          Don&apos;t have an account?{" "}
+          <Link
+            to="/signup"
+            style={styles.footerLink}
+          >
             Sign up ✨
           </Link>
         </p>
-      </div>
-    </div>
+
+        <p style={styles.browseText}>
+          <Link
+            to="/products"
+            style={styles.browseLink}
+          >
+            Continue browsing without
+            signing in
+          </Link>
+        </p>
+      </section>
+    </main>
   );
 }
 
 const styles = {
   wrapper: {
-    minHeight: "100vh",
-    background: "linear-gradient(135deg, #fff0f5 0%, #fce4ec 100%)",
+    position: "relative",
     display: "flex",
+    minHeight: "100vh",
+    padding: "24px",
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
-    position: "relative",
-    overflow: "hidden",
-    fontFamily: "'Poppins', sans-serif",
+    background:
+      "linear-gradient(135deg, #fff0f5 0%, #fce4ec 100%)",
+    fontFamily:
+      "'Poppins', sans-serif",
   },
 
   blobTop: {
@@ -189,8 +378,9 @@ const styles = {
     right: "-80px",
     width: "320px",
     height: "320px",
-    background: "radial-gradient(circle, #f8bbd0 0%, #f48fb1 100%)",
     borderRadius: "50%",
+    background:
+      "radial-gradient(circle, #f8bbd0 0%, #f48fb1 100%)",
     opacity: 0.35,
     filter: "blur(40px)",
   },
@@ -201,47 +391,58 @@ const styles = {
     left: "-80px",
     width: "380px",
     height: "380px",
-    background: "radial-gradient(circle, #fce4ec 0%, #f8bbd0 100%)",
     borderRadius: "50%",
+    background:
+      "radial-gradient(circle, #fce4ec 0%, #f8bbd0 100%)",
     opacity: 0.4,
     filter: "blur(50px)",
   },
 
   card: {
-    background: "rgba(255, 255, 255, 0.88)",
-    backdropFilter: "blur(20px)",
-    borderRadius: "28px",
-    padding: "48px 40px",
-    width: "100%",
-    maxWidth: "420px",
-    boxShadow: "0 20px 60px rgba(244, 143, 177, 0.25)",
-    border: "1.5px solid rgba(248, 187, 208, 0.4)",
     position: "relative",
     zIndex: 1,
+    width: "100%",
+    maxWidth: "420px",
+    boxSizing: "border-box",
+    padding: "48px 40px",
+    border:
+      "1.5px solid rgba(248, 187, 208, 0.4)",
+    borderRadius: "28px",
+    background:
+      "rgba(255, 255, 255, 0.9)",
+    boxShadow:
+      "0 20px 60px rgba(244, 143, 177, 0.25)",
+    backdropFilter: "blur(20px)",
   },
 
   logoArea: {
-    textAlign: "center",
     marginBottom: "28px",
+    textAlign: "center",
+  },
+
+  homeLink: {
+    display: "inline-block",
+    textDecoration: "none",
   },
 
   logoIcon: {
-    fontSize: "44px",
     display: "block",
     marginBottom: "8px",
+    fontSize: "44px",
   },
 
   brandName: {
+    margin: "0 0 4px",
+    color: "#e91e8c",
     fontSize: "26px",
     fontWeight: "700",
-    color: "#e91e8c",
     letterSpacing: "0.5px",
-    marginBottom: "4px",
   },
 
   tagline: {
+    margin: 0,
+    color: "#b85d82",
     fontSize: "14px",
-    color: "#f48fb1",
     fontWeight: "400",
   },
 
@@ -258,118 +459,104 @@ const styles = {
   },
 
   label: {
+    paddingLeft: "4px",
+    color: "#a81750",
     fontSize: "13px",
     fontWeight: "600",
-    color: "#c2185b",
-    paddingLeft: "4px",
   },
 
   inputWrapper: {
     display: "flex",
     alignItems: "center",
-    background: "#fff5f8",
+    padding: "0 14px",
     border: "1.5px solid #f8bbd0",
     borderRadius: "14px",
-    padding: "0 14px",
+    background: "#fff5f8",
   },
 
   inputIcon: {
-    fontSize: "16px",
-    marginRight: "10px",
     flexShrink: 0,
+    marginRight: "10px",
+    fontSize: "16px",
   },
 
   input: {
+    minWidth: 0,
     flex: 1,
-    border: "none",
-    background: "transparent",
     padding: "13px 0",
-    fontSize: "14px",
-    color: "#444",
+    border: "none",
     outline: "none",
-    fontFamily: "'Poppins', sans-serif",
+    background: "transparent",
+    color: "#444444",
+    fontFamily:
+      "'Poppins', sans-serif",
+    fontSize: "14px",
   },
 
-  toggleEye: {
+  passwordToggle: {
+    flexShrink: 0,
+    marginLeft: "8px",
+    padding: "5px",
+    border: "none",
+    borderRadius: "8px",
+    background: "transparent",
     cursor: "pointer",
     fontSize: "16px",
-    marginLeft: "8px",
-    flexShrink: 0,
   },
 
-  forgotRow: {
-    textAlign: "right",
-    marginTop: "-8px",
-  },
-
-  forgotLink: {
-    fontSize: "12px",
-    color: "#f48fb1",
-    textDecoration: "none",
-    fontWeight: "500",
-  },
-
-  btn: {
-    background: "linear-gradient(135deg, #f06292 0%, #e91e8c 100%)",
-    color: "#fff",
+  submitButton: {
+    width: "100%",
+    marginTop: "4px",
+    padding: "14px",
     border: "none",
     borderRadius: "14px",
-    padding: "14px",
+    background:
+      "linear-gradient(135deg, #f06292 0%, #e91e8c 100%)",
+    boxShadow:
+      "0 6px 20px rgba(233, 30, 140, 0.35)",
+    color: "#ffffff",
+    fontFamily:
+      "'Poppins', sans-serif",
     fontSize: "15px",
     fontWeight: "600",
     letterSpacing: "0.5px",
-    boxShadow: "0 6px 20px rgba(233, 30, 140, 0.35)",
-    fontFamily: "'Poppins', sans-serif",
-    marginTop: "4px",
   },
 
-  divider: {
+  securityNote: {
     display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    margin: "24px 0 16px",
-  },
-
-  dividerLine: {
-    flex: 1,
-    height: "1px",
-    background: "#f8bbd0",
-  },
-
-  dividerText: {
-    fontSize: "12px",
-    color: "#f48fb1",
-    whiteSpace: "nowrap",
-    fontWeight: "500",
-  },
-
-  socialRow: {
-    display: "flex",
-    gap: "12px",
-    marginBottom: "24px",
-  },
-
-  socialBtn: {
-    flex: 1,
-    padding: "11px",
+    alignItems: "flex-start",
+    gap: "8px",
+    marginTop: "20px",
+    padding: "11px 13px",
+    border: "1px solid #f8bbd0",
     borderRadius: "12px",
-    border: "1.5px solid #f8bbd0",
-    background: "#fff",
-    fontSize: "13px",
-    fontWeight: "500",
-    color: "#c2185b",
-    cursor: "pointer",
-    fontFamily: "'Poppins', sans-serif",
+    background: "#fffafd",
+    color: "#777777",
+    fontSize: "10px",
+    lineHeight: 1.5,
   },
 
   footerText: {
-    textAlign: "center",
+    margin: "24px 0 0",
+    color: "#777777",
     fontSize: "13px",
-    color: "#aaa",
+    textAlign: "center",
   },
 
   footerLink: {
-    color: "#e91e8c",
+    color: "#c2185b",
+    fontWeight: "700",
+    textDecoration: "none",
+  },
+
+  browseText: {
+    margin: "12px 0 0",
+    fontSize: "11px",
+    textAlign: "center",
+  },
+
+  browseLink: {
+    color: "#a81750",
     fontWeight: "600",
     textDecoration: "none",
   },

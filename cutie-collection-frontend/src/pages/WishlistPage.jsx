@@ -1,209 +1,504 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
-import WishlistService from "../api/WishlistService";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  Link,
+  useNavigate,
+} from "react-router-dom";
+
 import CartService from "../api/CartService";
+import WishlistService from "../api/WishlistService";
+
 import WishlistCard from "../components/WishlistCard";
 
+import {
+  showError,
+  showSuccess,
+} from "../utils/toastUtils";
+
 export default function WishlistPage() {
-  const [wishlist, setWishlist] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [clearing, setClearing] = useState(false);
+  const [wishlist, setWishlist] =
+    useState([]);
+
+  const [
+    cartProductIds,
+    setCartProductIds,
+  ] = useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [clearing, setClearing] =
+    useState(false);
+
   const navigate = useNavigate();
 
+  const fetchWishlistData =
+    useCallback(async () => {
+      try {
+        setLoading(true);
+
+        const [
+          wishlistResponse,
+          cartResponse,
+        ] = await Promise.all([
+          WishlistService.getWishlist(),
+          CartService.getCart(),
+        ]);
+
+        const wishlistItems =
+          Array.isArray(
+            wishlistResponse.data
+          )
+            ? wishlistResponse.data
+            : [];
+
+        const cartItems =
+          Array.isArray(
+            cartResponse.data
+          )
+            ? cartResponse.data
+            : [];
+
+        setWishlist(wishlistItems);
+
+        setCartProductIds(
+          cartItems.map((item) =>
+            Number(item.productId)
+          )
+        );
+      } catch (error) {
+        setWishlist([]);
+        setCartProductIds([]);
+
+        showError(
+          error,
+          "Unable to load your wishlist"
+        );
+      } finally {
+        setLoading(false);
+      }
+    }, []);
+
   useEffect(() => {
-    fetchWishlist();
-  }, []);
+    fetchWishlistData();
+  }, [fetchWishlistData]);
 
-  const fetchWishlist = async () => {
+  const availableItemsCount = useMemo(
+    () =>
+      wishlist.filter((item) => {
+        const productInactive =
+          item.productActive === false ||
+          item.active === false;
+
+        const stockQuantity = Number(
+          item.stockQuantity ??
+            item.availableStock ??
+            0
+        );
+
+        return (
+          !productInactive &&
+          stockQuantity > 0
+        );
+      }).length,
+    [wishlist]
+  );
+
+  const handleRemove = async (
+    productId
+  ) => {
+    const normalizedProductId =
+      Number(productId);
+
     try {
-      const res = await WishlistService.getWishlist();
-      setWishlist(res.data);
-    } catch {
-      toast.error("Failed to load wishlist 💔");
-    } finally {
-      setLoading(false);
+      await WishlistService
+        .removeFromWishlist(
+          normalizedProductId
+        );
+
+      setWishlist((currentItems) =>
+        currentItems.filter(
+          (item) =>
+            Number(item.productId) !==
+            normalizedProductId
+        )
+      );
+
+      showSuccess(
+        "Product removed from wishlist"
+      );
+    } catch (error) {
+      showError(
+        error,
+        "Unable to remove the product from your wishlist"
+      );
+
+      /*
+       * WishlistCard catches this error and
+       * restores the card's visual state.
+       */
+      throw error;
     }
   };
 
-  const handleRemove = async (productId) => {
+  const handleAddToCart = async (
+    item
+  ) => {
+    const productId = Number(
+      item.productId
+    );
+
+    if (
+      cartProductIds.includes(productId)
+    ) {
+      navigate("/cart");
+      return;
+    }
+
     try {
-      await WishlistService.removeFromWishlist(productId);
-      setTimeout(() => {
-        setWishlist((prev) => prev.filter((i) => i.productId !== productId));
-        toast.success("Removed from wishlist 💔");
-      }, 300);
-    } catch {
-      toast.error("Failed to remove 💔");
+      await CartService.addItem({
+        productId,
+        quantity: 1,
+      });
+
+      setCartProductIds(
+        (currentProductIds) =>
+          currentProductIds.includes(
+            productId
+          )
+            ? currentProductIds
+            : [
+                ...currentProductIds,
+                productId,
+              ]
+      );
+
+      showSuccess(
+        `${
+          item.productName || "Product"
+        } added to cart`
+      );
+    } catch (error) {
+      showError(
+        error,
+        "Unable to add the product to your cart"
+      );
+
+      /*
+       * WishlistCard uses finally to end its
+       * loading state after this error.
+       */
+      throw error;
     }
   };
 
-  const handleAddToCart = async (item) => {
-    try {
-      await CartService.addItem({ productId: item.productId, quantity: 1 });
-      toast.success(`${item.productName} added to cart 🛒`);
-    } catch {
-      toast.error("Failed to add to cart 💔");
-    }
-  };
+  const handleClearWishlist =
+    async () => {
+      if (
+        clearing ||
+        wishlist.length === 0
+      ) {
+        return;
+      }
 
-  const handleClearWishlist = async () => {
-    if (!window.confirm("Clear your entire wishlist? 🥺")) return;
-    setClearing(true);
-    try {
-      await WishlistService.clearWishlist();
-      setWishlist([]);
-      toast.success("Wishlist cleared 🌸");
-    } catch {
-      toast.error("Failed to clear wishlist 💔");
-    } finally {
-      setClearing(false);
-    }
+      const confirmed = window.confirm(
+        "Remove all products from your wishlist?"
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        setClearing(true);
+
+        await WishlistService
+          .clearWishlist();
+
+        setWishlist([]);
+
+        showSuccess(
+          "Wishlist cleared successfully"
+        );
+      } catch (error) {
+        showError(
+          error,
+          "Unable to clear your wishlist"
+        );
+      } finally {
+        setClearing(false);
+      }
+    };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+
+    /*
+     * Remove values created by the older
+     * frontend authentication structure.
+     */
+    localStorage.removeItem("role");
+    localStorage.removeItem(
+      "username"
+    );
+
+    navigate("/login", {
+      replace: true,
+    });
   };
 
   return (
     <div style={styles.page}>
-      {/* NAVBAR */}
+      {/* Navigation */}
       <nav style={styles.navbar}>
-        <div style={styles.navBrand}>
-          <span style={styles.navLogo}>🌸</span>
-          <span style={styles.navTitle}>Cutie Collection</span>
-        </div>
+        <Link
+          to="/"
+          style={styles.brandLink}
+        >
+          <div style={styles.navBrand}>
+            <span
+              style={styles.navLogo}
+              aria-hidden="true"
+            >
+              🌸
+            </span>
+
+            <span style={styles.navTitle}>
+              Cutie Collection
+            </span>
+          </div>
+        </Link>
+
         <div style={styles.navLinks}>
-          <a href="/" style={styles.navLink}>
+          <Link
+            to="/"
+            style={styles.navLink}
+          >
             Home
-          </a>
-          <a href="/products" style={styles.navLink}>
+          </Link>
+
+          <Link
+            to="/products"
+            style={styles.navLink}
+          >
             Products
-          </a>
-          <a href="/cart" style={styles.navLink}>
+          </Link>
+
+          <Link
+            to="/categories"
+            style={styles.navLink}
+          >
+            Categories
+          </Link>
+
+          <Link
+            to="/cart"
+            style={styles.navLink}
+          >
             🛒 Cart
-          </a>
-          <a
-            href="/wishlist"
-            style={{ ...styles.navLink, color: "#e91e8c", fontWeight: "700" }}
+          </Link>
+
+          <Link
+            to="/wishlist"
+            style={{
+              ...styles.navLink,
+              ...styles.activeNavLink,
+            }}
           >
             💖 Wishlist
-          </a>
-          <a href="/orders" style={styles.navLink}>
+          </Link>
+
+          <Link
+            to="/orders"
+            style={styles.navLink}
+          >
             📦 Orders
-          </a>
+          </Link>
         </div>
+
         <button
-          style={styles.logoutBtn}
-          onClick={() => {
-            localStorage.removeItem("token");
-            navigate("/login");
-          }}
+          type="button"
+          style={styles.logoutButton}
+          onClick={handleLogout}
         >
           🌸 Logout
         </button>
       </nav>
 
-      {/* HEADER */}
-      <div style={styles.header}>
-        <div style={styles.blob1} />
-        <div style={styles.blob2} />
+      {/* Header */}
+      <header style={styles.header}>
+        <div
+          style={styles.blobOne}
+          aria-hidden="true"
+        />
+
+        <div
+          style={styles.blobTwo}
+          aria-hidden="true"
+        />
+
         <div style={styles.headerContent}>
-          <span style={styles.headerBadge}>💖 My Wishlist</span>
+          <span
+            style={styles.headerBadge}
+          >
+            💖 My Wishlist
+          </span>
+
           <h1 style={styles.title}>
-            Your <span style={styles.accent}>Wishlist 🌸</span>
+            Your{" "}
+            <span style={styles.accent}>
+              Wishlist 🌸
+            </span>
           </h1>
-          <p style={styles.sub}>
+
+          <p style={styles.subtitle}>
             {wishlist.length > 0
-              ? `${wishlist.length} cutie item${wishlist.length > 1 ? "s" : ""} saved for later 💕`
-              : "Your wishlist is empty — save something cute! 🌸"}
+              ? `${wishlist.length} saved product${
+                  wishlist.length === 1
+                    ? ""
+                    : "s"
+                }, including ${availableItemsCount} currently available.`
+              : "Save products here to find them again later."}
           </p>
         </div>
-      </div>
+      </header>
 
-      {/* CONTENT */}
-      <div style={styles.container}>
+      {/* Content */}
+      <main style={styles.container}>
         {loading ? (
-          <div style={styles.loadingBox}>
-            <span style={styles.spinner} />
-            <p style={styles.loadingText}>Loading your wishlist...</p>
+          <div
+            style={styles.loadingBox}
+            role="status"
+            aria-live="polite"
+          >
+            <span
+              style={styles.spinner}
+              aria-hidden="true"
+            />
+
+            <p style={styles.loadingText}>
+              Loading your wishlist...
+            </p>
           </div>
         ) : wishlist.length === 0 ? (
           <div style={styles.emptyBox}>
-            <span style={{ fontSize: "72px" }}>💖</span>
-            <p style={styles.emptyText}>Your wishlist is empty!</p>
-            <p style={styles.emptySub}>
-              Browse products and save your favorites 🌸
+            <span
+              style={styles.emptyIcon}
+              aria-hidden="true"
+            >
+              💖
+            </span>
+
+            <p style={styles.emptyTitle}>
+              Your wishlist is empty
             </p>
+
+            <p style={styles.emptySubtitle}>
+              Browse products and save your
+              favourites for later.
+            </p>
+
             <button
-              style={styles.shopBtn}
-              onClick={() => navigate("/products")}
+              type="button"
+              style={styles.shopButton}
+              onClick={() =>
+                navigate("/products")
+              }
             >
               Shop Now 🌸
             </button>
           </div>
         ) : (
-          <div style={styles.layout}>
-            {/* List Header */}
+          <section style={styles.layout}>
             <div style={styles.listHeader}>
-              <h2 style={styles.sectionTitle}>
-                Saved Items
-                <span style={styles.countBadge}>{wishlist.length}</span>
-              </h2>
+              <div>
+                <h2
+                  style={styles.sectionTitle}
+                >
+                  Saved Items
+
+                  <span
+                    style={styles.countBadge}
+                  >
+                    {wishlist.length}
+                  </span>
+                </h2>
+
+                <p style={styles.listText}>
+                  Move available products to
+                  your cart or remove them
+                  from this list.
+                </p>
+              </div>
+
               <button
+                type="button"
                 style={{
-                  ...styles.clearBtn,
-                  opacity: clearing ? 0.6 : 1,
-                  transition: "opacity 0.2s",
+                  ...styles.clearButton,
+                  opacity: clearing
+                    ? 0.6
+                    : 1,
+                  cursor: clearing
+                    ? "not-allowed"
+                    : "pointer",
                 }}
-                onClick={handleClearWishlist}
+                onClick={
+                  handleClearWishlist
+                }
                 disabled={clearing}
               >
-                {clearing ? "Clearing..." : "🗑️ Clear All"}
+                {clearing
+                  ? "Clearing..."
+                  : "🗑️ Clear All"}
               </button>
             </div>
 
-            {/* Wishlist Items */}
-            {/* <div style={styles.itemsStack}>
-              {wishlist.map((item) => (
-                <WishlistCard
-                  key={item.productId}
-                  item={item}
-                  onRemove={handleRemove}
-                  onAddToCart={handleAddToCart}
-                />
-              ))}
-            </div> */}
             <div style={styles.itemsStack}>
-              {wishlist.map((item) => (
-                <div key={item.productId}>
-                  <img
-                    src={item.imageUrl}
-                    alt={item.productName}
-                    style={{
-                      width: "80px",
-                      height: "80px",
-                      objectFit: "cover",
-                      borderRadius: "10px",
-                    }}
-                  />
+              {wishlist.map((item) => {
+                const productId =
+                  Number(item.productId);
 
+                return (
                   <WishlistCard
+                    key={
+                      item.id ??
+                      productId
+                    }
                     item={item}
-                    onRemove={handleRemove}
-                    onAddToCart={handleAddToCart}
+                    onRemove={
+                      handleRemove
+                    }
+                    onAddToCart={
+                      handleAddToCart
+                    }
+                    isInCart={cartProductIds.includes(
+                      productId
+                    )}
                   />
-                </div>
-              ))}
+                );
+              })}
             </div>
-          </div>
+          </section>
         )}
-      </div>
+      </main>
 
-      {/* FOOTER */}
+      {/* Footer */}
       <footer style={styles.footer}>
-        <p>© 2024 Cutie Collection. Made with 💕 for all cuties.</p>
+        <p style={{ margin: 0 }}>
+          © {new Date().getFullYear()} Cutie
+          Collection. Made with 💕 for all
+          cuties.
+        </p>
       </footer>
     </div>
   );
 }
-
 const styles = {
   page: {
     fontFamily: "'Poppins', sans-serif",

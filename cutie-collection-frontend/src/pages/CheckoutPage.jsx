@@ -1,252 +1,834 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  Link,
+  useNavigate,
+} from "react-router-dom";
+
+import AddressService from "../api/AddressService";
 import CartService from "../api/CartService";
 import OrderService from "../api/OrderService";
-import CheckoutSummary from "../components/CheckoutSummary";
 import PaymentService from "../api/PaymentService";
 
+import CheckoutSummary from "../components/CheckoutSummary";
+
+import {
+  showError,
+  showInfo,
+  showSuccess,
+  showWarning,
+} from "../utils/toastUtils";
+
+const RAZORPAY_SCRIPT_URL =
+  "https://checkout.razorpay.com/v1/checkout.js";
+
+function loadRazorpayScript() {
+  return new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+
+    const existingScript =
+      document.querySelector(
+        `script[src="${RAZORPAY_SCRIPT_URL}"]`
+      );
+
+    if (existingScript) {
+      existingScript.addEventListener(
+        "load",
+        () => resolve(true),
+        {
+          once: true,
+        }
+      );
+
+      existingScript.addEventListener(
+        "error",
+        () => resolve(false),
+        {
+          once: true,
+        }
+      );
+
+      return;
+    }
+
+    const script =
+      document.createElement("script");
+
+    script.src = RAZORPAY_SCRIPT_URL;
+    script.async = true;
+
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+
+    document.body.appendChild(script);
+  });
+}
+
 export default function CheckoutPage() {
-  const [cartItems, setCartItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [placing, setPlacing] = useState(false);
+  const [cartItems, setCartItems] =
+    useState([]);
+
+  const [addresses, setAddresses] =
+    useState([]);
+
+  const [
+    selectedAddressId,
+    setSelectedAddressId,
+  ] = useState("");
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [placing, setPlacing] =
+    useState(false);
+
   const navigate = useNavigate();
 
-  const totalAmount = cartItems.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0,
-  );
+  const storedUser = useMemo(() => {
+    const userValue =
+      localStorage.getItem("user");
 
-  useEffect(() => {
-    fetchCart();
+    if (!userValue) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(userValue);
+    } catch {
+      return null;
+    }
   }, []);
 
-  const fetchCart = async () => {
-    try {
-      const res = await CartService.getCart();
+  const loadCheckoutData =
+    useCallback(async () => {
+      try {
+        setLoading(true);
 
-      console.log("Cart Data:", res.data);
+        const [
+          cartResponse,
+          addressResponse,
+        ] = await Promise.all([
+          CartService.getCart(),
+          AddressService.getAll(),
+        ]);
 
-      setCartItems(res.data);
-    } catch {
-      toast.error("Failed to load cart 💔");
-    } finally {
-      setLoading(false);
+        const loadedCartItems =
+          Array.isArray(cartResponse.data)
+            ? cartResponse.data
+            : [];
+
+        const loadedAddresses =
+          Array.isArray(
+            addressResponse.data
+          )
+            ? addressResponse.data
+            : [];
+
+        setCartItems(loadedCartItems);
+        setAddresses(loadedAddresses);
+
+        const defaultAddress =
+          loadedAddresses.find(
+            (address) =>
+              address.defaultAddress
+          );
+
+        if (defaultAddress) {
+          setSelectedAddressId(
+            String(defaultAddress.id)
+          );
+        } else if (
+          loadedAddresses.length > 0
+        ) {
+          setSelectedAddressId(
+            String(
+              loadedAddresses[0].id
+            )
+          );
+        }
+      } catch (error) {
+        setCartItems([]);
+        setAddresses([]);
+
+        showError(
+          error,
+          "Unable to load checkout details"
+        );
+      } finally {
+        setLoading(false);
+      }
+    }, []);
+
+  useEffect(() => {
+    loadCheckoutData();
+  }, [loadCheckoutData]);
+
+  const hasUnavailableProducts =
+    useMemo(
+      () =>
+        cartItems.some((item) => {
+          const productInactive =
+            item.productActive === false;
+
+          const stockKnown =
+            item.availableStock !==
+              null &&
+            item.availableStock !==
+              undefined;
+
+          const insufficientStock =
+            stockKnown &&
+            Number(
+              item.availableStock
+            ) <
+              Number(
+                item.quantity || 0
+              );
+
+          return (
+            productInactive ||
+            insufficientStock
+          );
+        }),
+      [cartItems]
+    );
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("role");
+
+    navigate("/login", {
+      replace: true,
+    });
+  };
+
+  const verifyRazorpayPayment = async ({
+    applicationOrderId,
+    razorpayResponse,
+  }) => {
+    await PaymentService.verifyPayment({
+      applicationOrderId,
+      razorpayOrderId:
+        razorpayResponse
+          .razorpay_order_id,
+      razorpayPaymentId:
+        razorpayResponse
+          .razorpay_payment_id,
+      razorpaySignature:
+        razorpayResponse
+          .razorpay_signature,
+    });
+  };
+
+  const openRazorpayCheckout = async (
+    applicationOrder
+  ) => {
+    const scriptLoaded =
+      await loadRazorpayScript();
+
+    if (!scriptLoaded) {
+      throw new Error(
+        "Unable to load Razorpay Checkout"
+      );
     }
+
+    const applicationOrderId =
+      applicationOrder.id ??
+      applicationOrder.orderId;
+
+    if (!applicationOrderId) {
+      throw new Error(
+        "Application order ID is missing"
+      );
+    }
+
+    const paymentResponse =
+      await PaymentService.createPaymentOrder(
+        applicationOrderId
+      );
+
+    const paymentOrder =
+      paymentResponse.data;
+
+    const razorpayOrderId =
+      paymentOrder.razorpayOrderId ??
+      paymentOrder.orderId;
+
+    if (!razorpayOrderId) {
+      throw new Error(
+        "Razorpay order ID is missing"
+      );
+    }
+
+    const razorpayKey =
+      paymentOrder.keyId ||
+      import.meta.env
+        .VITE_RAZORPAY_KEY_ID;
+
+    if (!razorpayKey) {
+      throw new Error(
+        "Razorpay key is not configured"
+      );
+    }
+
+    const options = {
+      key: razorpayKey,
+      amount: paymentOrder.amount,
+      currency:
+        paymentOrder.currency || "INR",
+      name: "The Cutie Collection",
+      description: `Payment for ${
+        applicationOrder.orderNumber ||
+        `order ${applicationOrderId}`
+      }`,
+      order_id: razorpayOrderId,
+
+      prefill: {
+        name: storedUser?.name || "",
+        email: storedUser?.email || "",
+      },
+
+      theme: {
+        color: "#e91e8c",
+      },
+
+      handler: async (
+        razorpayResponse
+      ) => {
+        try {
+          await verifyRazorpayPayment({
+            applicationOrderId,
+            razorpayResponse,
+          });
+
+          showSuccess(
+            "Payment verified successfully"
+          );
+
+          navigate("/orders", {
+            replace: true,
+          });
+        } catch (error) {
+          showError(
+            error,
+            "Payment verification failed"
+          );
+        } finally {
+          setPlacing(false);
+        }
+      },
+
+      modal: {
+        ondismiss: () => {
+          setPlacing(false);
+
+          showInfo(
+            "Payment window closed. Your order remains available in My Orders."
+          );
+        },
+      },
+    };
+
+    const razorpay =
+      new window.Razorpay(options);
+
+    razorpay.on(
+      "payment.failed",
+      (response) => {
+        setPlacing(false);
+
+        const message =
+          response.error?.description ||
+          "Payment failed";
+
+        showError(message);
+      }
+    );
+
+    razorpay.open();
   };
 
   const handlePlaceOrder = async () => {
-    if (cartItems.length === 0) {
-      toast.error("Your cart is empty 💔");
+    if (placing) {
       return;
     }
+
+    if (cartItems.length === 0) {
+      showWarning(
+        "Your cart is empty"
+      );
+      return;
+    }
+
+    if (hasUnavailableProducts) {
+      showWarning(
+        "Update unavailable or understocked products before checkout"
+      );
+      return;
+    }
+
+    if (!selectedAddressId) {
+      showWarning(
+        "Select a shipping address"
+      );
+      return;
+    }
+
     try {
       setPlacing(true);
-      await OrderService.placeOrder();
-      toast.success("Order placed successfully! 🎀");
-      navigate("/orders");
+
+      /*
+       * Step 1:
+       * Create the application order using
+       * the authenticated customer, cart,
+       * and selected address.
+       */
+      const orderResponse =
+        await OrderService.placeOrder(
+          Number(selectedAddressId)
+        );
+
+      const applicationOrder =
+        orderResponse.data;
+
+      showSuccess(
+        "Order created successfully"
+      );
+
+      /*
+       * Step 2:
+       * Create the Razorpay order using the
+       * saved application order ID.
+       *
+       * The backend calculates the payment
+       * amount. React does not send an amount.
+       */
+      await openRazorpayCheckout(
+        applicationOrder
+      );
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Failed to place order 💔");
-    } finally {
       setPlacing(false);
-    }
-  };
 
-  const handlePayment = async () => {
-    try {
-      console.log("Total Amount =", totalAmount);
-
-      const response = await PaymentService.createOrder(totalAmount);
-      console.log("Payment Response:", response.data);
-
-      const order = response.data;
-
-      const options = {
-        key: "rzp_test_T8TbbFa8piWh1l",
-
-        amount: order.amount,
-
-        currency: order.currency,
-
-        name: "Cutie Collection",
-
-        description: "Order Payment",
-
-        order_id: order.orderId,
-
-       handler: async function (paymentResponse) {
-
-  try {
-
-    console.log("Payment Success:", paymentResponse);
-
-    await PaymentService.savePayment({
-
-      razorpayPaymentId:
-        paymentResponse.razorpay_payment_id,
-
-      razorpayOrderId:
-        paymentResponse.razorpay_order_id,
-
-      amount: totalAmount
-
-    });
-
-    await OrderService.placeOrder();
-
-    toast.success("Payment Successful ✅");
-
-    navigate("/orders");
-
-  } catch (error) {
-
-    console.error(error);
-
-    toast.error(
-      "Payment saved failed 💔"
-    );
-  }
-},
-
-        prefill: {
-          name: "Rashi",
-        },
-
-        theme: {
-          color: "#e91e8c",
-        },
-      };
-
-      const razorpay = new window.Razorpay(options);
-
-      razorpay.open();
-    } catch (error) {
-      console.error("Payment Error:", error);
-
-      toast.error("Payment Failed 💔");
+      showError(
+        error,
+        "Unable to place the order"
+      );
     }
   };
 
   return (
     <div style={styles.page}>
-      {/* NAVBAR */}
+      {/* Navigation */}
       <nav style={styles.navbar}>
-        <div style={styles.navBrand}>
-          <span style={styles.navLogo}>🌸</span>
-          <span style={styles.navTitle}>Cutie Collection</span>
-        </div>
+        <Link
+          to="/"
+          style={styles.brandLink}
+        >
+          <div style={styles.navBrand}>
+            <span
+              style={styles.navLogo}
+              aria-hidden="true"
+            >
+              🌸
+            </span>
+
+            <span style={styles.navTitle}>
+              Cutie Collection
+            </span>
+          </div>
+        </Link>
+
         <div style={styles.navLinks}>
-          <a href="/" style={styles.navLink}>
+          <Link
+            to="/"
+            style={styles.navLink}
+          >
             Home
-          </a>
-          <a href="/products" style={styles.navLink}>
+          </Link>
+
+          <Link
+            to="/products"
+            style={styles.navLink}
+          >
             Products
-          </a>
-          <a href="/cart" style={styles.navLink}>
+          </Link>
+
+          <Link
+            to="/cart"
+            style={styles.navLink}
+          >
             🛒 Cart
-          </a>
-          <a href="/orders" style={styles.navLink}>
+          </Link>
+
+          <Link
+            to="/orders"
+            style={styles.navLink}
+          >
             📦 Orders
-          </a>
+          </Link>
         </div>
+
         <button
-          onClick={() => {
-            localStorage.removeItem("token");
-            navigate("/login");
-          }}
-          style={styles.logoutBtn}
+          type="button"
+          onClick={handleLogout}
+          style={styles.logoutButton}
         >
           🌸 Logout
         </button>
       </nav>
 
-      {/* HEADER */}
-      <div style={styles.header}>
-        <div style={styles.blob1} />
-        <div style={styles.blob2} />
-        <div style={styles.headerContent}>
-          {/* <span style={styles.badge}>💳 Checkout</span> */}
-          {/* <button style={styles.placeOrderBtn} onClick={handlePayment}>
-            💳 Pay Now
-          </button> */}
-          <h1 style={styles.title}>
-            Almost <span style={styles.accent}>There! 🎀</span>
-          </h1>
-          <p style={styles.sub}>Review your order and place it 💕</p>
-        </div>
-      </div>
+      {/* Header */}
+      <header style={styles.header}>
+        <div
+          style={styles.blobOne}
+          aria-hidden="true"
+        />
 
-      <div style={styles.container}>
+        <div
+          style={styles.blobTwo}
+          aria-hidden="true"
+        />
+
+        <div style={styles.headerContent}>
+          <span style={styles.headerBadge}>
+            🔒 Secure Checkout
+          </span>
+
+          <h1 style={styles.title}>
+            Almost{" "}
+            <span style={styles.accent}>
+              There! 🎀
+            </span>
+          </h1>
+
+          <p style={styles.subtitle}>
+            Select your shipping address,
+            review the order, and complete
+            payment securely.
+          </p>
+        </div>
+      </header>
+
+      <main style={styles.container}>
         {loading ? (
-          <div style={styles.loadingBox}>
-            <span style={{ fontSize: "48px" }}>🌸</span>
-            <p style={styles.loadingText}>Loading your cart...</p>
+          <div
+            style={styles.loadingBox}
+            role="status"
+          >
+            <span
+              style={styles.loadingIcon}
+              aria-hidden="true"
+            >
+              🌸
+            </span>
+
+            <p style={styles.loadingText}>
+              Loading checkout details...
+            </p>
           </div>
         ) : cartItems.length === 0 ? (
           <div style={styles.emptyBox}>
-            <span style={{ fontSize: "64px" }}>🛒</span>
-            <p style={styles.emptyText}>Nothing to checkout!</p>
-            <p style={styles.emptySub}>Add some cute items first 💕</p>
+            <span
+              style={styles.emptyIcon}
+              aria-hidden="true"
+            >
+              🛒
+            </span>
+
+            <p style={styles.emptyTitle}>
+              Nothing to checkout
+            </p>
+
+            <p style={styles.emptyText}>
+              Add products to your cart
+              before continuing.
+            </p>
+
             <button
-              style={styles.shopBtn}
-              onClick={() => navigate("/products")}
+              type="button"
+              style={styles.shopButton}
+              onClick={() =>
+                navigate("/products")
+              }
             >
               Shop Now 🌸
             </button>
           </div>
         ) : (
           <div style={styles.layout}>
-            {/* LEFT — Delivery Info */}
-            <div style={styles.leftCol}>
-              <div style={styles.infoCard}>
-                <h2 style={styles.sectionTitle}>📦 Delivery Details</h2>
-                <div style={styles.infoRow}>
-                  <span style={styles.infoLabel}>Delivery Type</span>
-                  <span style={styles.infoValue}>Standard Delivery</span>
+            <div style={styles.leftColumn}>
+              {/* Shipping address */}
+              <section style={styles.infoCard}>
+                <div
+                  style={
+                    styles.sectionHeader
+                  }
+                >
+                  <div>
+                    <h2
+                      style={
+                        styles.sectionTitle
+                      }
+                    >
+                      📍 Shipping Address
+                    </h2>
+
+                    <p
+                      style={
+                        styles.sectionSubtitle
+                      }
+                    >
+                      Select where this order
+                      should be delivered.
+                    </p>
+                  </div>
                 </div>
-                <div style={styles.infoRow}>
-                  <span style={styles.infoLabel}>Estimated</span>
-                  <span style={styles.infoValue}>3–5 Business Days</span>
-                </div>
-                <div style={styles.infoRow}>
-                  <span style={styles.infoLabel}>Shipping Fee</span>
-                  <span
-                    style={{
-                      ...styles.infoValue,
-                      color: "#2e7d32",
-                      fontWeight: "700",
-                    }}
+
+                {addresses.length === 0 ? (
+                  <div style={styles.noticeBox}>
+                    <p style={styles.noticeText}>
+                      No saved address is
+                      available.
+                    </p>
+
+                    <p
+                      style={
+                        styles.noticeSubtext
+                      }
+                    >
+                      Add an address before
+                      placing the order.
+                    </p>
+                  </div>
+                ) : (
+                  <div
+                    style={
+                      styles.addressList
+                    }
                   >
-                    FREE 🎀
+                    {addresses.map(
+                      (address) => {
+                        const selected =
+                          String(
+                            address.id
+                          ) ===
+                          String(
+                            selectedAddressId
+                          );
+
+                        return (
+                          <label
+                            key={address.id}
+                            style={{
+                              ...styles.addressCard,
+                              ...(selected
+                                ? styles.selectedAddressCard
+                                : {}),
+                            }}
+                          >
+                            <input
+                              type="radio"
+                              name="shippingAddress"
+                              value={address.id}
+                              checked={selected}
+                              onChange={(
+                                event
+                              ) =>
+                                setSelectedAddressId(
+                                  event
+                                    .target
+                                    .value
+                                )
+                              }
+                              disabled={placing}
+                              style={
+                                styles.addressRadio
+                              }
+                            />
+
+                            <div
+                              style={
+                                styles.addressContent
+                              }
+                            >
+                              <div
+                                style={
+                                  styles.addressTitleRow
+                                }
+                              >
+                                <strong
+                                  style={
+                                    styles.addressName
+                                  }
+                                >
+                                  {
+                                    address.fullName
+                                  }
+                                </strong>
+
+                                {address.defaultAddress && (
+                                  <span
+                                    style={
+                                      styles.defaultBadge
+                                    }
+                                  >
+                                    Default
+                                  </span>
+                                )}
+                              </div>
+
+                              <span
+                                style={
+                                  styles.addressText
+                                }
+                              >
+                                {
+                                  address.addressLine1
+                                }
+                                {address.addressLine2
+                                  ? `, ${address.addressLine2}`
+                                  : ""}
+                              </span>
+
+                              <span
+                                style={
+                                  styles.addressText
+                                }
+                              >
+                                {address.city},{" "}
+                                {address.state}{" "}
+                                {
+                                  address.postalCode
+                                }
+                              </span>
+
+                              <span
+                                style={
+                                  styles.addressText
+                                }
+                              >
+                                {
+                                  address.country
+                                }
+                              </span>
+
+                              <span
+                                style={
+                                  styles.addressPhone
+                                }
+                              >
+                                📞{" "}
+                                {
+                                  address.phoneNumber
+                                }
+                              </span>
+                            </div>
+                          </label>
+                        );
+                      }
+                    )}
+                  </div>
+                )}
+              </section>
+
+              {/* Payment method */}
+              <section style={styles.infoCard}>
+                <h2
+                  style={styles.sectionTitle}
+                >
+                  💳 Payment Method
+                </h2>
+
+                <div
+                  style={
+                    styles.paymentOption
+                  }
+                >
+                  <span
+                    style={
+                      styles.paymentDot
+                    }
+                    aria-hidden="true"
+                  />
+
+                  <div
+                    style={
+                      styles.paymentContent
+                    }
+                  >
+                    <span
+                      style={
+                        styles.paymentLabel
+                      }
+                    >
+                      Razorpay Online Payment
+                    </span>
+
+                    <span
+                      style={
+                        styles.paymentDescription
+                      }
+                    >
+                      Complete payment using
+                      the payment methods
+                      available through Razorpay.
+                    </span>
+                  </div>
+
+                  <span
+                    style={
+                      styles.selectedBadge
+                    }
+                  >
+                    Selected
                   </span>
                 </div>
-              </div>
 
-              <div style={styles.infoCard}>
-                <h2 style={styles.sectionTitle}>💳 Payment</h2>
-                <div style={styles.paymentOption}>
-                  <span style={styles.paymentDot} />
-                  <span style={styles.paymentLabel}>Cash on Delivery</span>
-                  <span style={styles.paymentBadge}>✅ Selected</span>
-                </div>
-              </div>
+                <p
+                  style={
+                    styles.paymentSecurityText
+                  }
+                >
+                  The backend retrieves the
+                  final amount from the saved
+                  order and verifies the
+                  Razorpay signature.
+                </p>
+              </section>
             </div>
 
-            {/* RIGHT — Summary */}
-            <div style={styles.rightCol}>
+            {/* Order summary */}
+            <div style={styles.rightColumn}>
               <CheckoutSummary
                 cartItems={cartItems}
-                onPlaceOrder={handlePayment}
+                onPlaceOrder={
+                  handlePlaceOrder
+                }
                 placing={placing}
+                canPlaceOrder={Boolean(
+                  selectedAddressId
+                )}
               />
             </div>
           </div>
         )}
-      </div>
+      </main>
 
-      {/* FOOTER */}
       <footer style={styles.footer}>
-        <p>© 2024 Cutie Collection. Made with 💕 for all cuties.</p>
+        <p>
+          © {new Date().getFullYear()} Cutie
+          Collection. Made with 💕 for all
+          cuties.
+        </p>
       </footer>
     </div>
   );
@@ -254,188 +836,406 @@ export default function CheckoutPage() {
 
 const styles = {
   page: {
-    fontFamily: "'Poppins', sans-serif",
-    background: "#fff",
     minHeight: "100vh",
+    background: "#ffffff",
+    color: "#333333",
+    fontFamily: "'Poppins', sans-serif",
   },
 
   navbar: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "16px 60px",
-    background: "rgba(255,255,255,0.95)",
-    backdropFilter: "blur(10px)",
-    borderBottom: "1.5px solid #fce4ec",
     position: "sticky",
     top: 0,
     zIndex: 100,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "16px",
+    padding: "16px 5%",
+    borderBottom: "1.5px solid #fce4ec",
+    background: "rgba(255,255,255,0.96)",
+    backdropFilter: "blur(10px)",
     flexWrap: "wrap",
-    gap: "12px",
   },
-  navBrand: { display: "flex", alignItems: "center", gap: "10px" },
-  navLogo: { fontSize: "28px" },
-  navTitle: { fontSize: "20px", fontWeight: "700", color: "#e91e8c" },
-  navLinks: { display: "flex", gap: "28px" },
-  navLink: {
+
+  brandLink: {
     textDecoration: "none",
-    color: "#c2185b",
-    fontSize: "14px",
-    fontWeight: "500",
   },
-  logoutBtn: {
-    background: "linear-gradient(135deg, #f06292, #e91e8c)",
-    color: "#fff",
+
+  navBrand: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+  },
+
+  navLogo: {
+    fontSize: "28px",
+  },
+
+  navTitle: {
+    color: "#e91e8c",
+    fontSize: "20px",
+    fontWeight: "700",
+  },
+
+  navLinks: {
+    display: "flex",
+    alignItems: "center",
+    gap: "24px",
+    flexWrap: "wrap",
+  },
+
+  navLink: {
+    color: "#a81750",
+    fontSize: "13px",
+    fontWeight: "500",
+    textDecoration: "none",
+  },
+
+  logoutButton: {
+    padding: "8px 18px",
     border: "none",
     borderRadius: "20px",
-    padding: "8px 18px",
+    background:
+      "linear-gradient(135deg, #f06292, #e91e8c)",
+    color: "#ffffff",
+    cursor: "pointer",
+    fontFamily: "inherit",
     fontSize: "13px",
     fontWeight: "600",
-    cursor: "pointer",
-    fontFamily: "'Poppins', sans-serif",
-    boxShadow: "0 4px 12px rgba(233,30,140,0.25)",
   },
 
   header: {
-    background: "linear-gradient(135deg, #fff0f5 0%, #fce4ec 100%)",
-    padding: "60px 60px 50px",
     position: "relative",
+    padding: "60px 5% 50px",
     overflow: "hidden",
+    background:
+      "linear-gradient(135deg, #fff0f5 0%, #fce4ec 100%)",
   },
-  blob1: {
+
+  blobOne: {
     position: "absolute",
     top: "-80px",
     right: "-60px",
     width: "280px",
     height: "280px",
-    background: "radial-gradient(circle, #f8bbd0, #f48fb1)",
     borderRadius: "50%",
+    background:
+      "radial-gradient(circle, #f8bbd0, #f48fb1)",
     opacity: 0.25,
     filter: "blur(50px)",
   },
-  blob2: {
+
+  blobTwo: {
     position: "absolute",
     bottom: "-60px",
     left: "-60px",
     width: "240px",
     height: "240px",
-    background: "radial-gradient(circle, #fce4ec, #f8bbd0)",
     borderRadius: "50%",
+    background:
+      "radial-gradient(circle, #fce4ec, #f8bbd0)",
     opacity: 0.3,
     filter: "blur(40px)",
   },
-  headerContent: { position: "relative", zIndex: 1 },
-  badge: {
-    background: "#fff",
-    color: "#e91e8c",
-    border: "1.5px solid #f8bbd0",
-    borderRadius: "20px",
-    padding: "6px 16px",
-    fontSize: "13px",
-    fontWeight: "600",
+
+  headerContent: {
+    position: "relative",
+    zIndex: 1,
+  },
+
+  headerBadge: {
     display: "inline-block",
     marginBottom: "16px",
+    padding: "6px 16px",
+    border: "1.5px solid #f8bbd0",
+    borderRadius: "20px",
+    background: "#ffffff",
+    color: "#e91e8c",
+    fontSize: "13px",
+    fontWeight: "600",
   },
-  title: {
-    fontSize: "40px",
-    fontWeight: "800",
-    color: "#2d2d2d",
-    marginBottom: "10px",
-  },
-  accent: { color: "#e91e8c" },
-  sub: { fontSize: "15px", color: "#888" },
 
-  container: { padding: "40px 60px", maxWidth: "1200px", margin: "0 auto" },
+  title: {
+    margin: "0 0 10px",
+    color: "#2d2d2d",
+    fontSize: "clamp(32px, 6vw, 40px)",
+    fontWeight: "800",
+  },
+
+  accent: {
+    color: "#e91e8c",
+  },
+
+  subtitle: {
+    margin: 0,
+    color: "#777777",
+    fontSize: "15px",
+  },
+
+  container: {
+    width: "min(1200px, calc(100% - 32px))",
+    margin: "0 auto",
+    padding: "40px 0",
+  },
 
   layout: {
     display: "grid",
-    gridTemplateColumns: "1fr 360px",
+    gridTemplateColumns:
+      "minmax(0, 1fr) minmax(300px, 370px)",
     gap: "32px",
     alignItems: "flex-start",
   },
-  leftCol: { display: "flex", flexDirection: "column", gap: "24px" },
-  rightCol: {},
+
+  leftColumn: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "24px",
+    minWidth: 0,
+  },
+
+  rightColumn: {
+    minWidth: 0,
+  },
 
   infoCard: {
-    background: "rgba(255,255,255,0.95)",
-    backdropFilter: "blur(20px)",
-    borderRadius: "24px",
-    padding: "28px",
-    border: "1.5px solid #f8bbd0",
-    boxShadow: "0 8px 32px rgba(244,143,177,0.12)",
     display: "flex",
     flexDirection: "column",
     gap: "16px",
-    fontFamily: "'Poppins', sans-serif",
+    padding: "28px",
+    border: "1.5px solid #f8bbd0",
+    borderRadius: "24px",
+    background: "rgba(255,255,255,0.95)",
+    boxShadow:
+      "0 8px 32px rgba(244,143,177,0.12)",
   },
-  sectionTitle: {
-    fontSize: "18px",
-    fontWeight: "700",
-    color: "#333",
-    margin: 0,
-  },
-  infoRow: {
+
+  sectionHeader: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
+    gap: "16px",
+    flexWrap: "wrap",
   },
-  infoLabel: { fontSize: "14px", color: "#888" },
-  infoValue: { fontSize: "14px", fontWeight: "600", color: "#333" },
 
-  paymentOption: { display: "flex", alignItems: "center", gap: "12px" },
-  paymentDot: {
-    width: "14px",
-    height: "14px",
-    borderRadius: "50%",
-    background: "linear-gradient(135deg, #f06292, #e91e8c)",
-    flexShrink: 0,
+  sectionTitle: {
+    margin: 0,
+    color: "#333333",
+    fontSize: "18px",
+    fontWeight: "700",
   },
-  paymentLabel: { fontSize: "14px", fontWeight: "600", color: "#333", flex: 1 },
-  paymentBadge: {
+
+  sectionSubtitle: {
+    margin: "5px 0 0",
+    color: "#777777",
+    fontSize: "12px",
+  },
+
+  addressList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "12px",
+  },
+
+  addressCard: {
+    display: "flex",
+    gap: "12px",
+    padding: "16px",
+    border: "1.5px solid #f8bbd0",
+    borderRadius: "15px",
+    background: "#fffafd",
+    cursor: "pointer",
+  },
+
+  selectedAddressCard: {
+    borderColor: "#e91e8c",
+    background: "#fff0f5",
+    boxShadow:
+      "0 0 0 3px rgba(233,30,140,0.08)",
+  },
+
+  addressRadio: {
+    marginTop: "4px",
+    accentColor: "#e91e8c",
+  },
+
+  addressContent: {
+    display: "flex",
+    flex: 1,
+    flexDirection: "column",
+    gap: "3px",
+  },
+
+  addressTitleRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    flexWrap: "wrap",
+  },
+
+  addressName: {
+    color: "#333333",
+    fontSize: "13px",
+  },
+
+  defaultBadge: {
+    padding: "2px 8px",
+    borderRadius: "999px",
     background: "#e8f5e9",
     color: "#2e7d32",
-    border: "1px solid #c8e6c9",
-    borderRadius: "20px",
-    padding: "3px 12px",
+    fontSize: "9px",
+    fontWeight: "700",
+  },
+
+  addressText: {
+    color: "#666666",
+    fontSize: "11px",
+    lineHeight: 1.5,
+  },
+
+  addressPhone: {
+    marginTop: "3px",
+    color: "#a81750",
     fontSize: "11px",
     fontWeight: "600",
   },
 
-  loadingBox: { textAlign: "center", padding: "80px 20px" },
-  loadingText: { fontSize: "16px", color: "#f48fb1", marginTop: "16px" },
-  emptyBox: {
+  noticeBox: {
+    padding: "18px",
+    border: "1.5px dashed #f8bbd0",
+    borderRadius: "14px",
+    background: "#fffafd",
     textAlign: "center",
-    padding: "60px 20px",
-    background: "linear-gradient(135deg, #fff0f5, #fce4ec)",
-    borderRadius: "24px",
-    border: "1.5px solid #f8bbd0",
   },
-  emptyText: {
+
+  noticeText: {
+    margin: "0 0 4px",
+    color: "#a81750",
+    fontSize: "13px",
+    fontWeight: "700",
+  },
+
+  noticeSubtext: {
+    margin: 0,
+    color: "#777777",
+    fontSize: "11px",
+  },
+
+  paymentOption: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    padding: "15px",
+    border: "1.5px solid #f8bbd0",
+    borderRadius: "14px",
+    background: "#fffafd",
+  },
+
+  paymentDot: {
+    width: "14px",
+    height: "14px",
+    flexShrink: 0,
+    borderRadius: "50%",
+    background:
+      "linear-gradient(135deg, #f06292, #e91e8c)",
+  },
+
+  paymentContent: {
+    display: "flex",
+    flex: 1,
+    flexDirection: "column",
+    gap: "3px",
+  },
+
+  paymentLabel: {
+    color: "#333333",
+    fontSize: "13px",
+    fontWeight: "700",
+  },
+
+  paymentDescription: {
+    color: "#777777",
+    fontSize: "10px",
+    lineHeight: 1.5,
+  },
+
+  selectedBadge: {
+    padding: "3px 10px",
+    border: "1px solid #c8e6c9",
+    borderRadius: "20px",
+    background: "#e8f5e9",
+    color: "#2e7d32",
+    fontSize: "10px",
+    fontWeight: "600",
+  },
+
+  paymentSecurityText: {
+    margin: 0,
+    color: "#777777",
+    fontSize: "10px",
+    lineHeight: 1.6,
+  },
+
+  loadingBox: {
+    padding: "80px 20px",
+    textAlign: "center",
+  },
+
+  loadingIcon: {
+    display: "block",
+    fontSize: "48px",
+  },
+
+  loadingText: {
+    marginTop: "16px",
+    color: "#c85f89",
+    fontSize: "16px",
+  },
+
+  emptyBox: {
+    padding: "60px 20px",
+    border: "1.5px solid #f8bbd0",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, #fff0f5, #fce4ec)",
+    textAlign: "center",
+  },
+
+  emptyIcon: {
+    display: "block",
+    fontSize: "64px",
+  },
+
+  emptyTitle: {
+    margin: "16px 0 6px",
+    color: "#e91e8c",
     fontSize: "20px",
     fontWeight: "700",
-    color: "#e91e8c",
-    marginTop: "16px",
   },
-  emptySub: { fontSize: "14px", color: "#f48fb1", marginBottom: "24px" },
-  shopBtn: {
-    background: "linear-gradient(135deg, #f06292, #e91e8c)",
-    color: "#fff",
+
+  emptyText: {
+    margin: "0 0 24px",
+    color: "#9f5575",
+    fontSize: "14px",
+  },
+
+  shopButton: {
+    padding: "13px 28px",
     border: "none",
     borderRadius: "14px",
-    padding: "13px 28px",
+    background:
+      "linear-gradient(135deg, #f06292, #e91e8c)",
+    color: "#ffffff",
+    cursor: "pointer",
+    fontFamily: "inherit",
     fontSize: "14px",
     fontWeight: "600",
-    cursor: "pointer",
-    fontFamily: "'Poppins', sans-serif",
-    boxShadow: "0 6px 20px rgba(233,30,140,0.3)",
   },
 
   footer: {
-    background: "#2d2d2d",
-    textAlign: "center",
-    padding: "24px",
-    fontSize: "13px",
-    color: "#666",
     marginTop: "60px",
+    padding: "24px",
+    background: "#2d2d2d",
+    color: "#999999",
+    fontSize: "13px",
+    textAlign: "center",
   },
 };

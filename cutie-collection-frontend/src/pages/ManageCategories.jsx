@@ -1,587 +1,814 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  Link,
+  useNavigate,
+} from "react-router-dom";
+
 import CategoryService from "../api/CategoryService";
 import CategoryCard from "../components/CategoryCard";
 
-const emptyForm = { name: "", description: "" };
+import {
+  showError,
+  showSuccess,
+  showWarning,
+} from "../utils/toastUtils";
+
+const EMPTY_FORM = {
+  name: "",
+  description: "",
+};
 
 export default function ManageCategories() {
-  const [categories, setCategories] = useState([]);
-  const [form, setForm] = useState(emptyForm);
-  const [editId, setEditId] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [categories, setCategories] =
+    useState([]);
+
+  const [form, setForm] =
+    useState(EMPTY_FORM);
+
+  const [editId, setEditId] =
+    useState(null);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [fetching, setFetching] =
+    useState(true);
+
+  const [showForm, setShowForm] =
+    useState(false);
+
+  const [
+    deleteConfirmId,
+    setDeleteConfirmId,
+  ] = useState(null);
 
   const navigate = useNavigate();
 
+  const fetchCategories =
+    useCallback(async () => {
+      try {
+        setFetching(true);
+
+        const response =
+          await CategoryService.getAllForAdmin();
+
+        setCategories(
+          Array.isArray(response.data)
+            ? response.data
+            : []
+        );
+      } catch (error) {
+        setCategories([]);
+
+        showError(
+          error,
+          "Unable to load categories"
+        );
+      } finally {
+        setFetching(false);
+      }
+    }, []);
+
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) navigate("/login");
-    else fetchCategories();
-  }, []);
+    fetchCategories();
+  }, [fetchCategories]);
 
-  const fetchCategories = async () => {
-    try {
-      const res = await CategoryService.getAll();
-      setCategories(res.data);
-    } catch (error) {
-      toast.error("Failed to load categories 💔");
+  const activeCount = useMemo(
+    () =>
+      categories.filter(
+        (category) =>
+          category.active !== false
+      ).length,
+    [categories]
+  );
+
+  const inactiveCount =
+    categories.length - activeCount;
+
+const handleChange = (event) => {
+  const { name, value } = event.target;
+
+  setForm((currentForm) => ({
+    ...currentForm,
+    value,
+  }));
+};
+
+  const resetForm = () => {
+    setForm(EMPTY_FORM);
+    setEditId(null);
+    setShowForm(false);
+  };
+
+  const validateForm = () => {
+    const normalizedName =
+      form.name.trim();
+
+    if (!normalizedName) {
+      showWarning(
+        "Category name is required"
+      );
+      return false;
     }
+
+    if (normalizedName.length < 2) {
+      showWarning(
+        "Category name must contain at least 2 characters"
+      );
+      return false;
+    }
+
+    if (normalizedName.length > 100) {
+      showWarning(
+        "Category name cannot exceed 100 characters"
+      );
+      return false;
+    }
+
+    if (
+      form.description.trim().length >
+      500
+    ) {
+      showWarning(
+        "Description cannot exceed 500 characters"
+      );
+      return false;
+    }
+
+    return true;
   };
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  const handleSubmit = async (
+    event
+  ) => {
+    event.preventDefault();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!form.name.trim()) {
-      toast.error("Category name is required 🌷");
+    if (!validateForm()) {
       return;
     }
 
+    const requestData = {
+      name: form.name.trim(),
+      description:
+        form.description.trim() || null,
+    };
+
     try {
-      setLoading(true);
+      setSaving(true);
 
       if (editId) {
-        await CategoryService.update(editId, form);
-        toast.success("Category updated! 💕");
+        await CategoryService.update(
+          editId,
+          requestData
+        );
+
+        showSuccess(
+          "Category updated successfully"
+        );
       } else {
-        await CategoryService.create(form);
-        toast.success("Category created! 🌸");
+        await CategoryService.create(
+          requestData
+        );
+
+        showSuccess(
+          "Category created successfully"
+        );
       }
 
-      setForm(emptyForm);
-      setEditId(null);
-      setShowForm(false);
-      fetchCategories();
+      resetForm();
+      await fetchCategories();
     } catch (error) {
-      toast.error(
-        error?.response?.data?.message || "Failed to save category 💔"
+      showError(
+        error,
+        editId
+          ? "Unable to update the category"
+          : "Unable to create the category"
       );
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
   const handleEdit = (category) => {
     setForm({
-      name: category.name,
-      description: category.description || "",
+      name: category.name || "",
+      description:
+        category.description || "",
     });
+
     setEditId(category.id);
     setShowForm(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
   };
 
-  const handleDelete = async (id) => {
+  const handleActivate = async (
+    categoryId
+  ) => {
     try {
-      await CategoryService.remove(id);
-      toast.success("Category deleted! 🗑️");
-      setDeleteConfirmId(null);
-      fetchCategories();
+      await CategoryService.activate(
+        categoryId
+      );
+
+      showSuccess(
+        "Category activated successfully"
+      );
+
+      await fetchCategories();
     } catch (error) {
-      toast.error("Failed to delete category 💔");
+      showError(
+        error,
+        "Unable to activate the category"
+      );
     }
   };
 
-  const handleCancel = () => {
-    setForm(emptyForm);
-    setEditId(null);
-    setShowForm(false);
+  const handleDeactivate = async (
+    categoryId
+  ) => {
+    const category = categories.find(
+      (item) =>
+        item.id === categoryId
+    );
+
+    const confirmed = window.confirm(
+      `Deactivate "${
+        category?.name ||
+        "this category"
+      }"? It will be hidden from public category browsing.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await CategoryService.deactivate(
+        categoryId
+      );
+
+      if (editId === categoryId) {
+        resetForm();
+      }
+
+      showSuccess(
+        "Category deactivated successfully"
+      );
+
+      await fetchCategories();
+    } catch (error) {
+      showError(
+        error,
+        "Unable to deactivate the category"
+      );
+    }
+  };
+
+  const handleDelete = async (
+    categoryId
+  ) => {
+    try {
+      /*
+       * Backend deletion is a soft delete.
+       * The category remains in the database
+       * but becomes inactive.
+       */
+      await CategoryService.remove(
+        categoryId
+      );
+
+      setDeleteConfirmId(null);
+
+      if (editId === categoryId) {
+        resetForm();
+      }
+
+      showSuccess(
+        "Category deactivated successfully"
+      );
+
+      await fetchCategories();
+    } catch (error) {
+      showError(
+        error,
+        "Unable to deactivate the category"
+      );
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("role");
+    localStorage.removeItem(
+      "username"
+    );
+
+    navigate("/login", {
+      replace: true,
+    });
   };
 
   return (
     <div style={styles.page}>
-
-      {/* ── NAVBAR ── */}
+      {/* Navigation */}
       <nav style={styles.navbar}>
-        <div style={styles.navBrand}>
-          <span style={styles.navLogo}>🌸</span>
-          <span style={styles.navTitle}>Cutie Collection</span>
-        </div>
+        <Link
+          to="/"
+          style={styles.brandLink}
+        >
+          <div style={styles.navBrand}>
+            <span
+              style={styles.navLogo}
+              aria-hidden="true"
+            >
+              🌸
+            </span>
+
+            <span style={styles.navTitle}>
+              Cutie Collection
+            </span>
+          </div>
+        </Link>
+
         <div style={styles.navLinks}>
-          <a href="/" style={styles.navLink}>Home</a>
-          <a href="/categories" style={styles.navLink}>Categories</a>
-          <a
-            href="/manage-categories"
-            style={{ ...styles.navLink, color: "#e91e8c", fontWeight: "700" }}
+          <Link
+            to="/"
+            style={styles.navLink}
           >
-            Manage
-          </a>
+            Home
+          </Link>
+
+          <Link
+            to="/categories"
+            style={styles.navLink}
+          >
+            Categories
+          </Link>
+
+          <Link
+            to="/admin/categories"
+            style={{
+              ...styles.navLink,
+              color: "#e91e8c",
+              fontWeight: "700",
+            }}
+          >
+            Manage Categories
+          </Link>
+
+          <Link
+            to="/admin/products"
+            style={styles.navLink}
+          >
+            Manage Products
+          </Link>
         </div>
+
         <button
-          onClick={() => {
-            localStorage.removeItem("token");
-            navigate("/login");
-          }}
+          type="button"
+          onClick={handleLogout}
           style={styles.logoutBtn}
         >
           🌸 Logout
         </button>
       </nav>
 
-      {/* ── PAGE HEADER ── */}
-      <div style={styles.pageHeader}>
-        <div style={styles.blob1} />
-        <div style={styles.blob2} />
+      {/* Header */}
+      <header style={styles.pageHeader}>
+        <div
+          style={styles.blob1}
+          aria-hidden="true"
+        />
+
+        <div
+          style={styles.blob2}
+          aria-hidden="true"
+        />
+
         <div style={styles.headerContent}>
-          <span style={styles.badge}>✨ Admin Panel</span>
+          <span style={styles.badge}>
+            ✨ Admin Panel
+          </span>
+
           <h1 style={styles.pageTitle}>
-            Manage <span style={styles.accent}>Categories 📦</span>
+            Manage{" "}
+            <span style={styles.accent}>
+              Categories 📦
+            </span>
           </h1>
+
           <p style={styles.pageSub}>
-            Create, update and delete your store categories
+            Create, edit, activate, and
+            deactivate store categories.
           </p>
+
           <button
+            type="button"
             style={styles.addBtn}
             onClick={() => {
-              setShowForm(!showForm);
-              setForm(emptyForm);
-              setEditId(null);
+              if (showForm) {
+                resetForm();
+              } else {
+                setForm(EMPTY_FORM);
+                setEditId(null);
+                setShowForm(true);
+              }
             }}
           >
-            {showForm ? "✖ Close Form" : "+ Add New Category 🌸"}
+            {showForm
+              ? "✖ Close Form"
+              : "+ Add New Category 🌸"}
           </button>
         </div>
-      </div>
+      </header>
 
-      <div style={styles.container}>
-
-        {/* ── FORM ── */}
+      <main style={styles.container}>
+        {/* Category form */}
         {showForm && (
-          <div style={styles.formCard}>
+          <section style={styles.formCard}>
             <h2 style={styles.formTitle}>
-              {editId ? "✏️ Edit Category" : "🌸 New Category"}
+              {editId
+                ? "✏️ Edit Category"
+                : "🌸 New Category"}
             </h2>
 
-            <form onSubmit={handleSubmit} style={styles.form}>
+            <form
+              onSubmit={handleSubmit}
+              style={styles.form}
+              noValidate
+            >
+              <div
+                style={styles.inputGroup}
+              >
+                <label
+                  htmlFor="category-name"
+                  style={styles.label}
+                >
+                  Category Name
+                </label>
 
-              {/* Name */}
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>Category Name</label>
-                <div style={styles.inputWrapper}>
-                  <span style={styles.inputIcon}>🏷️</span>
+                <div
+                  style={
+                    styles.inputWrapper
+                  }
+                >
+                  <span
+                    style={
+                      styles.inputIcon
+                    }
+                    aria-hidden="true"
+                  >
+                    🏷️
+                  </span>
+
                   <input
+                    id="category-name"
                     type="text"
                     name="name"
                     value={form.name}
                     onChange={handleChange}
-                    placeholder="e.g. Accessories, Skincare..."
+                    placeholder="e.g. Soft Toys"
+                    minLength={2}
+                    maxLength={100}
+                    required
+                    disabled={saving}
                     style={styles.input}
                   />
                 </div>
+
+                <span
+                  style={
+                    styles.characterCount
+                  }
+                >
+                  {form.name.length}/100
+                </span>
               </div>
 
-              {/* Description */}
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>
+              <div
+                style={styles.inputGroup}
+              >
+                <label
+                  htmlFor="category-description"
+                  style={styles.label}
+                >
                   Description{" "}
-                  <span style={styles.optional}>(optional)</span>
+                  <span
+                    style={styles.optional}
+                  >
+                    (optional)
+                  </span>
                 </label>
-                <div style={styles.inputWrapper}>
-                  <span style={styles.inputIcon}>📝</span>
-                  <input
-                    type="text"
-                    name="description"
-                    value={form.description}
-                    onChange={handleChange}
-                    placeholder="Short description..."
-                    style={styles.input}
-                  />
-                </div>
-              </div>
 
-              {/* Buttons */}
-              <div style={styles.formActions}>
-                <button
-                  type="submit"
-                  disabled={loading}
+                <div
                   style={{
-                    ...styles.submitBtn,
-                    opacity: loading ? 0.7 : 1,
-                    cursor: loading ? "not-allowed" : "pointer",
+                    ...styles.inputWrapper,
+                    alignItems: "flex-start",
                   }}
                 >
-                  {loading
+                  <span
+                    style={{
+                      ...styles.inputIcon,
+                      marginTop: "14px",
+                    }}
+                    aria-hidden="true"
+                  >
+                    📝
+                  </span>
+
+                  <textarea
+                    id="category-description"
+                    name="description"
+                    value={
+                      form.description
+                    }
+                    onChange={handleChange}
+                    placeholder="Describe the category..."
+                    rows={4}
+                    maxLength={500}
+                    disabled={saving}
+                    style={styles.textarea}
+                  />
+                </div>
+
+                <span
+                  style={
+                    styles.characterCount
+                  }
+                >
+                  {form.description.length}
+                  /500
+                </span>
+              </div>
+
+              <div
+                style={styles.formActions}
+              >
+                <button
+                  type="submit"
+                  disabled={saving}
+                  style={{
+                    ...styles.submitBtn,
+                    opacity: saving
+                      ? 0.65
+                      : 1,
+                    cursor: saving
+                      ? "not-allowed"
+                      : "pointer",
+                  }}
+                >
+                  {saving
                     ? "Saving..."
                     : editId
-                    ? "Update Category 💕"
-                    : "Create Category 🌸"}
+                      ? "Update Category 💕"
+                      : "Create Category 🌸"}
                 </button>
+
                 <button
                   type="button"
-                  onClick={handleCancel}
-                  style={styles.cancelBtn}
+                  onClick={resetForm}
+                  disabled={saving}
+                  style={{
+                    ...styles.cancelBtn,
+                    opacity: saving
+                      ? 0.6
+                      : 1,
+                    cursor: saving
+                      ? "not-allowed"
+                      : "pointer",
+                  }}
                 >
                   Cancel
                 </button>
               </div>
             </form>
-          </div>
+          </section>
         )}
 
-        {/* ── STATS ROW ── */}
-        <div style={styles.statsRow}>
+        {/* Statistics */}
+        <section style={styles.statsRow}>
           <div style={styles.statCard}>
-            <span style={styles.statEmoji}>📦</span>
+            <span
+              style={styles.statEmoji}
+              aria-hidden="true"
+            >
+              📦
+            </span>
+
             <div>
-              <div style={styles.statNum}>{categories.length}</div>
-              <div style={styles.statLabel}>Total Categories</div>
+              <div style={styles.statNum}>
+                {categories.length}
+              </div>
+
+              <div
+                style={styles.statLabel}
+              >
+                Total Categories
+              </div>
             </div>
           </div>
+
           <div style={styles.statCard}>
-            <span style={styles.statEmoji}>✅</span>
+            <span
+              style={styles.statEmoji}
+              aria-hidden="true"
+            >
+              ✅
+            </span>
+
             <div>
-              <div style={styles.statNum}>{categories.length}</div>
-              <div style={styles.statLabel}>Active</div>
+              <div style={styles.statNum}>
+                {activeCount}
+              </div>
+
+              <div
+                style={styles.statLabel}
+              >
+                Active
+              </div>
             </div>
           </div>
+
           <div style={styles.statCard}>
-            <span style={styles.statEmoji}>🌸</span>
+            <span
+              style={styles.statEmoji}
+              aria-hidden="true"
+            >
+              ⏸️
+            </span>
+
             <div>
-              <div style={styles.statNum}>Cute</div>
-              <div style={styles.statLabel}>Store Theme</div>
+              <div style={styles.statNum}>
+                {inactiveCount}
+              </div>
+
+              <div
+                style={styles.statLabel}
+              >
+                Inactive
+              </div>
             </div>
           </div>
+        </section>
+
+        {/* Category list */}
+        <div style={styles.listHeader}>
+          <h2 style={styles.listTitle}>
+            All Categories 💝
+          </h2>
+
+          <button
+            type="button"
+            style={styles.refreshButton}
+            onClick={fetchCategories}
+            disabled={fetching}
+          >
+            {fetching
+              ? "Refreshing..."
+              : "↻ Refresh"}
+          </button>
         </div>
 
-        {/* ── CATEGORY LIST ── */}
-        <h2 style={styles.listTitle}>All Categories 💝</h2>
+        {fetching ? (
+          <div style={styles.loadingState}>
+            <span
+              style={styles.loadingEmoji}
+              aria-hidden="true"
+            >
+              🌸
+            </span>
 
-        {categories.length === 0 ? (
+            <p>Loading categories...</p>
+          </div>
+        ) : categories.length === 0 ? (
           <div style={styles.emptyState}>
-            <span style={{ fontSize: "64px" }}>🛍️</span>
-            <p style={styles.emptyText}>No categories yet!</p>
-            <p style={styles.emptySub}>
-              Add your first category to get started 🌸
+            <span
+              style={styles.emptyEmoji}
+              aria-hidden="true"
+            >
+              🛍️
+            </span>
+
+            <p style={styles.emptyText}>
+              No categories yet!
             </p>
+
+            <p style={styles.emptySub}>
+              Add your first category to
+              get started.
+            </p>
+
             <button
+              type="button"
               style={styles.addBtn}
-              onClick={() => setShowForm(true)}
+              onClick={() =>
+                setShowForm(true)
+              }
             >
               + Add Category
             </button>
           </div>
         ) : (
           <div style={styles.grid}>
-            {categories.map((category) => (
-              <div key={category.id}>
-                <CategoryCard
-                  category={category}
-                  onEdit={() => handleEdit(category)}
-                  onDelete={() => setDeleteConfirmId(category.id)}
-                />
+            {categories.map(
+              (category) => (
+                <div key={category.id}>
+                  <CategoryCard
+                    category={category}
+                    onEdit={handleEdit}
+                    onActivate={
+                      handleActivate
+                    }
+                    onDeactivate={
+                      handleDeactivate
+                    }
+                    onDelete={(
+                      categoryId
+                    ) =>
+                      setDeleteConfirmId(
+                        categoryId
+                      )
+                    }
+                  />
 
-                {/* ── DELETE CONFIRM ── */}
-                {deleteConfirmId === category.id && (
-                  <div style={styles.confirmBox}>
-                    <p style={styles.confirmText}>
-                      Delete "{category.name}"? 💔
-                    </p>
-                    <div style={styles.confirmActions}>
-                      <button
-                        style={styles.confirmYes}
-                        onClick={() => handleDelete(category.id)}
+                  {deleteConfirmId ===
+                    category.id && (
+                    <div
+                      style={
+                        styles.confirmBox
+                      }
+                    >
+                      <p
+                        style={
+                          styles.confirmText
+                        }
                       >
-                        Yes, Delete
-                      </button>
-                      <button
-                        style={styles.confirmNo}
-                        onClick={() => setDeleteConfirmId(null)}
+                        Deactivate &quot;
+                        {category.name}
+                        &quot;? It will be
+                        hidden from public
+                        category browsing.
+                      </p>
+
+                      <div
+                        style={
+                          styles.confirmActions
+                        }
                       >
-                        Cancel
-                      </button>
+                        <button
+                          type="button"
+                          style={
+                            styles.confirmYes
+                          }
+                          onClick={() =>
+                            handleDelete(
+                              category.id
+                            )
+                          }
+                        >
+                          Yes, Deactivate
+                        </button>
+
+                        <button
+                          type="button"
+                          style={
+                            styles.confirmNo
+                          }
+                          onClick={() =>
+                            setDeleteConfirmId(
+                              null
+                            )
+                          }
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              )
+            )}
           </div>
         )}
-      </div>
+      </main>
 
-      {/* ── FOOTER ── */}
       <footer style={styles.footer}>
-        <p>© 2024 Cutie Collection. Made with 💕 for all cuties.</p>
+        <p>
+          © {new Date().getFullYear()} Cutie
+          Collection. Made with 💕 for all
+          cuties.
+        </p>
       </footer>
     </div>
   );
 }
-
-const styles = {
-  page: {
-    fontFamily: "'Poppins', sans-serif",
-    background: "#fff",
-    minHeight: "100vh",
-    color: "#333",
-  },
-
-  // NAVBAR
-  navbar: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "16px 60px",
-    background: "rgba(255,255,255,0.95)",
-    backdropFilter: "blur(10px)",
-    borderBottom: "1.5px solid #fce4ec",
-    position: "sticky",
-    top: 0,
-    zIndex: 100,
-    flexWrap: "wrap",
-    gap: "12px",
-  },
-  navBrand: { display: "flex", alignItems: "center", gap: "10px" },
-  navLogo: { fontSize: "28px" },
-  navTitle: { fontSize: "20px", fontWeight: "700", color: "#e91e8c" },
-  navLinks: { display: "flex", gap: "28px" },
-  navLink: {
-    textDecoration: "none",
-    color: "#c2185b",
-    fontSize: "14px",
-    fontWeight: "500",
-  },
-  logoutBtn: {
-    background: "linear-gradient(135deg, #f06292, #e91e8c)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "20px",
-    padding: "8px 18px",
-    fontSize: "13px",
-    fontWeight: "600",
-    cursor: "pointer",
-    fontFamily: "'Poppins', sans-serif",
-    boxShadow: "0 4px 12px rgba(233,30,140,0.25)",
-  },
-
-  // PAGE HEADER
-  pageHeader: {
-    background: "linear-gradient(135deg, #fff0f5 0%, #fce4ec 100%)",
-    padding: "60px 60px 50px",
-    position: "relative",
-    overflow: "hidden",
-  },
-  blob1: {
-    position: "absolute", top: "-80px", right: "-60px",
-    width: "280px", height: "280px",
-    background: "radial-gradient(circle, #f8bbd0, #f48fb1)",
-    borderRadius: "50%", opacity: 0.25, filter: "blur(50px)",
-  },
-  blob2: {
-    position: "absolute", bottom: "-60px", left: "-60px",
-    width: "240px", height: "240px",
-    background: "radial-gradient(circle, #fce4ec, #f8bbd0)",
-    borderRadius: "50%", opacity: 0.3, filter: "blur(40px)",
-  },
-  headerContent: { position: "relative", zIndex: 1 },
-  badge: {
-    background: "#fff",
-    color: "#e91e8c",
-    border: "1.5px solid #f8bbd0",
-    borderRadius: "20px",
-    padding: "6px 16px",
-    fontSize: "13px",
-    fontWeight: "600",
-    display: "inline-block",
-    marginBottom: "16px",
-  },
-  pageTitle: {
-    fontSize: "40px",
-    fontWeight: "800",
-    color: "#2d2d2d",
-    marginBottom: "10px",
-  },
-  accent: { color: "#e91e8c" },
-  pageSub: { fontSize: "15px", color: "#888", marginBottom: "28px" },
-  addBtn: {
-    background: "linear-gradient(135deg, #f06292, #e91e8c)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "14px",
-    padding: "13px 28px",
-    fontSize: "14px",
-    fontWeight: "600",
-    cursor: "pointer",
-    fontFamily: "'Poppins', sans-serif",
-    boxShadow: "0 6px 20px rgba(233,30,140,0.3)",
-  },
-
-  // CONTAINER
-  container: {
-    padding: "40px 60px",
-    maxWidth: "1200px",
-    margin: "0 auto",
-  },
-
-  // FORM CARD
-  formCard: {
-    background: "rgba(255,255,255,0.95)",
-    backdropFilter: "blur(20px)",
-    borderRadius: "24px",
-    padding: "36px 40px",
-    boxShadow: "0 20px 60px rgba(244,143,177,0.2)",
-    border: "1.5px solid rgba(248,187,208,0.5)",
-    marginBottom: "36px",
-  },
-  formTitle: {
-    fontSize: "22px",
-    fontWeight: "700",
-    color: "#e91e8c",
-    marginBottom: "24px",
-  },
-  form: { display: "flex", flexDirection: "column", gap: "18px" },
-  inputGroup: { display: "flex", flexDirection: "column", gap: "6px" },
-  label: { fontSize: "13px", fontWeight: "600", color: "#c2185b", paddingLeft: "4px" },
-  optional: { color: "#f48fb1", fontWeight: "400" },
-  inputWrapper: {
-    display: "flex",
-    alignItems: "center",
-    background: "#fff5f8",
-    border: "1.5px solid #f8bbd0",
-    borderRadius: "14px",
-    padding: "0 14px",
-  },
-  inputIcon: { fontSize: "16px", marginRight: "10px", flexShrink: 0 },
-  input: {
-    flex: 1,
-    border: "none",
-    background: "transparent",
-    padding: "13px 0",
-    fontSize: "14px",
-    color: "#444",
-    outline: "none",
-    fontFamily: "'Poppins', sans-serif",
-  },
-  formActions: { display: "flex", gap: "12px", marginTop: "4px" },
-  submitBtn: {
-    background: "linear-gradient(135deg, #f06292, #e91e8c)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "14px",
-    padding: "13px 28px",
-    fontSize: "14px",
-    fontWeight: "600",
-    fontFamily: "'Poppins', sans-serif",
-    boxShadow: "0 6px 20px rgba(233,30,140,0.3)",
-  },
-  cancelBtn: {
-    background: "#fff",
-    color: "#c2185b",
-    border: "1.5px solid #f8bbd0",
-    borderRadius: "14px",
-    padding: "13px 24px",
-    fontSize: "14px",
-    fontWeight: "600",
-    cursor: "pointer",
-    fontFamily: "'Poppins', sans-serif",
-  },
-
-  // STATS
-  statsRow: {
-    display: "flex",
-    gap: "20px",
-    marginBottom: "40px",
-    flexWrap: "wrap",
-  },
-  statCard: {
-    background: "linear-gradient(135deg, #fff0f5, #fce4ec)",
-    border: "1.5px solid #f8bbd0",
-    borderRadius: "18px",
-    padding: "20px 28px",
-    display: "flex",
-    alignItems: "center",
-    gap: "16px",
-    flex: 1,
-    minWidth: "160px",
-  },
-  statEmoji: { fontSize: "32px" },
-  statNum: { fontSize: "24px", fontWeight: "700", color: "#e91e8c" },
-  statLabel: { fontSize: "12px", color: "#f48fb1", fontWeight: "500" },
-
-  // LIST
-  listTitle: {
-    fontSize: "22px",
-    fontWeight: "700",
-    color: "#e91e8c",
-    marginBottom: "24px",
-  },
-
-  // GRID
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-    gap: "24px",
-  },
-
-  // DELETE CONFIRM
-  confirmBox: {
-    marginTop: "12px",
-    background: "#fff5f8",
-    borderRadius: "14px",
-    padding: "16px",
-    border: "1.5px solid #f8bbd0",
-  },
-  confirmText: {
-    fontSize: "13px",
-    color: "#c2185b",
-    fontWeight: "600",
-    marginBottom: "12px",
-  },
-  confirmActions: { display: "flex", gap: "8px" },
-  confirmYes: {
-    background: "#e91e8c",
-    color: "#fff",
-    border: "none",
-    borderRadius: "10px",
-    padding: "8px 18px",
-    fontSize: "12px",
-    fontWeight: "600",
-    cursor: "pointer",
-    fontFamily: "'Poppins', sans-serif",
-  },
-  confirmNo: {
-    background: "#fff",
-    color: "#c2185b",
-    border: "1.5px solid #f8bbd0",
-    borderRadius: "10px",
-    padding: "8px 16px",
-    fontSize: "12px",
-    fontWeight: "600",
-    cursor: "pointer",
-    fontFamily: "'Poppins', sans-serif",
-  },
-
-  // EMPTY STATE
-  emptyState: {
-    textAlign: "center",
-    padding: "60px 20px",
-    background: "linear-gradient(135deg, #fff0f5, #fce4ec)",
-    borderRadius: "24px",
-    border: "1.5px solid #f8bbd0",
-  },
-  emptyText: {
-    fontSize: "20px",
-    fontWeight: "700",
-    color: "#e91e8c",
-    marginTop: "16px",
-  },
-  emptySub: {
-    fontSize: "14px",
-    color: "#f48fb1",
-    marginBottom: "24px",
-  },
-
-  // FOOTER
-  footer: {
-    background: "#2d2d2d",
-    textAlign: "center",
-    padding: "24px",
-    fontSize: "13px",
-    color: "#666",
-    marginTop: "60px",
-  },
-};

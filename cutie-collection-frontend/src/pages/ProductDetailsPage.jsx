@@ -1,255 +1,664 @@
-import { useEffect, useState, useCallback, useRef } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { toast } from "react-toastify";
-import ProductService from "../api/ProductService";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  Link,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
+
 import CartService from "../api/CartService";
-import WishlistService from "../api/WishlistService";
+import ProductService from "../api/ProductService";
 import ReviewService from "../api/ReviewService";
+import WishlistService from "../api/WishlistService";
+
+import {
+  showError,
+  showSuccess,
+  showWarning,
+} from "../utils/toastUtils";
+
+const INITIAL_REVIEW = {
+  rating: 5,
+  comment: "",
+};
 
 export default function ProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [product, setProduct] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [adding, setAdding] = useState(false);
-  const [added, setAdded] = useState(false); // ✅ starts false — NOT true
-  const [wishlisted, setWishlisted] = useState(false);
-  const [imgHovered, setImgHovered] = useState(false);
+  const productId = Number(id);
 
-  const [reviews, setReviews] = useState([]);
+  const [product, setProduct] =
+    useState(null);
 
-  const [review, setReview] = useState({
-    userName: "",
-    rating: 5,
-    comment: "",
-  });
+  const [reviews, setReviews] =
+    useState([]);
 
-  // ✅ Stable ref to avoid re-registering effect on every render
-  const idRef = useRef(id);
-  idRef.current = id;
+  const [loading, setLoading] =
+    useState(true);
 
-  /* ── Fetch product ── */
-  useEffect(() => {
-    let cancelled = false;
-    const fetchProduct = async () => {
-      try {
-        const res = await ProductService.getById(id);
-        if (!cancelled) setProduct(res.data);
-      } catch {
-        if (!cancelled) {
-          toast.error("Product not found 💔");
-          navigate("/products");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    fetchProduct();
-    return () => {
-      cancelled = true;
-    }; // ✅ cleanup on unmount / id change
-  }, [id]);
+  const [reviewsLoading, setReviewsLoading] =
+    useState(true);
 
-  /* ── Check wishlist ── */
-  useEffect(() => {
-    let cancelled = false;
-    const checkWishlist = async () => {
-      try {
-        const res = await WishlistService.getWishlist();
-        const exists = res.data.some(
-          (item) => (item.product?.id ?? item.productId) === Number(id),
+  const [adding, setAdding] =
+    useState(false);
+
+  const [added, setAdded] =
+    useState(false);
+
+  const [wishlisted, setWishlisted] =
+    useState(false);
+
+  const [wishlistLoading, setWishlistLoading] =
+    useState(false);
+
+  const [submittingReview, setSubmittingReview] =
+    useState(false);
+
+  const [imageError, setImageError] =
+    useState(false);
+
+  const [imgHovered, setImgHovered] =
+    useState(false);
+
+  const [review, setReview] =
+    useState(INITIAL_REVIEW);
+
+  const token =
+    localStorage.getItem("token");
+
+  const isAuthenticated =
+    Boolean(token);
+
+  const formattedPrice = useMemo(
+    () =>
+      Number(
+        product?.price || 0
+      ).toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    [product?.price]
+  );
+
+  const unavailable =
+    product?.active === false ||
+    product?.inStock === false ||
+    Number(
+      product?.stockQuantity || 0
+    ) <= 0;
+
+  const loadProduct = useCallback(
+    async () => {
+      if (
+        !Number.isInteger(productId) ||
+        productId <= 0
+      ) {
+        showError(
+          "The requested product ID is invalid"
         );
-        if (!cancelled) setWishlisted(exists);
-      } catch {
-        // silent — wishlist check is non-critical
+
+        navigate("/products", {
+          replace: true,
+        });
+
+        return;
       }
-    };
-    checkWishlist();
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
+
+      try {
+        setLoading(true);
+
+        const response =
+          await ProductService.getById(
+            productId
+          );
+
+        setProduct(response.data);
+        setImageError(false);
+      } catch (error) {
+        setProduct(null);
+
+        showError(
+          error,
+          "Product not found"
+        );
+
+        navigate("/products", {
+          replace: true,
+        });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [navigate, productId]
+  );
+
+  const loadReviews = useCallback(
+    async () => {
+      if (
+        !Number.isInteger(productId) ||
+        productId <= 0
+      ) {
+        return;
+      }
+
+      try {
+        setReviewsLoading(true);
+
+        const response =
+          await ReviewService.getReviewsByProduct(
+            productId
+          );
+
+        const loadedReviews =
+          Array.isArray(response.data)
+            ? response.data
+            : [];
+
+        setReviews(
+          [...loadedReviews].sort(
+            (firstReview, secondReview) =>
+              new Date(
+                secondReview.createdAt || 0
+              ) -
+              new Date(
+                firstReview.createdAt || 0
+              )
+          )
+        );
+      } catch (error) {
+        setReviews([]);
+
+        showError(
+          error,
+          "Unable to load reviews"
+        );
+      } finally {
+        setReviewsLoading(false);
+      }
+    },
+    [productId]
+  );
+
+  const loadCustomerState = useCallback(
+    async () => {
+      if (!isAuthenticated) {
+        setAdded(false);
+        setWishlisted(false);
+        return;
+      }
+
+      try {
+        const [
+          cartResponse,
+          wishlistResponse,
+        ] = await Promise.all([
+          CartService.getCart(),
+          WishlistService.getWishlist(),
+        ]);
+
+        const cartItems =
+          Array.isArray(
+            cartResponse.data
+          )
+            ? cartResponse.data
+            : [];
+
+        const wishlistItems =
+          Array.isArray(
+            wishlistResponse.data
+          )
+            ? wishlistResponse.data
+            : [];
+
+        setAdded(
+          cartItems.some(
+            (item) =>
+              Number(item.productId) ===
+              productId
+          )
+        );
+
+        setWishlisted(
+          wishlistItems.some(
+            (item) =>
+              Number(item.productId) ===
+              productId
+          )
+        );
+      } catch (error) {
+        console.error(
+          "Unable to load customer product state:",
+          error
+        );
+      }
+    },
+    [isAuthenticated, productId]
+  );
 
   useEffect(() => {
     loadProduct();
     loadReviews();
-  }, [id]);
+  }, [loadProduct, loadReviews]);
 
-  const loadProduct = async () => {
-    try {
-      console.log("ID = ", id);
+  useEffect(() => {
+    loadCustomerState();
+  }, [loadCustomerState]);
 
-      const res = await ProductService.getProductById(id);
-
-      console.log("PRODUCT = ", res.data);
-
-      setProduct(res.data);
-    } catch (error) {
-      console.log("ERROR");
-      console.log(error);
-
-      console.log(error.response);
-      console.log(error.response?.data);
+  const requireAuthentication = (
+    destination
+  ) => {
+    if (isAuthenticated) {
+      return true;
     }
-  };
-  const loadReviews = async () => {
-    try {
-      const res = await ReviewService.getReviewsByProduct(id);
 
-     setReviews(
-  [...res.data].sort(
-    (a, b) =>
-      new Date(b.createdAt) -
-      new Date(a.createdAt)
-  )
-);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-  const submitReview = async () => {
-
-  console.log("Submit button clicked");
-
-  try {
-
-    await ReviewService.addReview({
-  productId: Number(id),
-  userName: review.userName,
-  rating: review.rating,
-  comment: review.comment,
-});
-
-
-    setReview({
-      userName: "",
-      rating: 5,
-      comment: "",
+    navigate("/login", {
+      state: {
+        from:
+          destination ||
+          `/products/${productId}`,
+      },
     });
 
-    await loadReviews();
-    toast.success("Review submitted successfully 🌸");
+    return false;
+  };
 
-  } catch (error) {
-
-    console.error(error);
-  }
-};
-
-  /* ── Handlers (memoized) ── */
-  const handleAddToCart = useCallback(async () => {
-    if (adding || !product || product.stockQuantity <= 0) return;
-    try {
-      setAdding(true);
-      await CartService.addItem({ productId: product.id, quantity: 1 });
-      setAdded(true); // ✅ only set after successful API call
-      toast.success(`${product.name} added to cart 🛒`);
-    } catch {
-      toast.error("Failed to add to cart 💔");
-    } finally {
-      setAdding(false);
-    }
-  }, [adding, product]);
-
-  const handleWishlist = useCallback(async () => {
-    if (!product) return;
-    try {
-      if (wishlisted) {
-        await WishlistService.removeFromWishlist(product.id);
-        setWishlisted(false);
-        toast.success("Removed from wishlist 💔");
-      } else {
-        await WishlistService.addToWishlist(product.id);
-        setWishlisted(true);
-        toast.success(`${product.name} added to wishlist 💖`);
+  const handleAddToCart =
+    useCallback(async () => {
+      if (
+        adding ||
+        unavailable ||
+        !product
+      ) {
+        return false;
       }
-    } catch {
-      toast.error("Failed to update wishlist 💔");
+
+      if (
+        !requireAuthentication(
+          `/products/${productId}`
+        )
+      ) {
+        return false;
+      }
+
+      try {
+        setAdding(true);
+
+        await CartService.addItem({
+          productId: product.id,
+          quantity: 1,
+        });
+
+        setAdded(true);
+
+        showSuccess(
+          `${product.name} added to cart`
+        );
+
+        return true;
+      } catch (error) {
+        showError(
+          error,
+          "Unable to add the product to cart"
+        );
+
+        return false;
+      } finally {
+        setAdding(false);
+      }
+    }, [
+      adding,
+      unavailable,
+      product,
+      isAuthenticated,
+      navigate,
+      productId,
+    ]);
+
+  const handleWishlist =
+    useCallback(async () => {
+      if (
+        !product ||
+        unavailable ||
+        wishlistLoading
+      ) {
+        return;
+      }
+
+      if (
+        !requireAuthentication(
+          `/products/${productId}`
+        )
+      ) {
+        return;
+      }
+
+      try {
+        setWishlistLoading(true);
+
+        if (wishlisted) {
+          await WishlistService
+            .removeFromWishlist(
+              product.id
+            );
+
+          setWishlisted(false);
+
+          showSuccess(
+            "Product removed from wishlist"
+          );
+        } else {
+          await WishlistService
+            .addToWishlist(
+              product.id
+            );
+
+          setWishlisted(true);
+
+          showSuccess(
+            "Product added to wishlist"
+          );
+        }
+      } catch (error) {
+        showError(
+          error,
+          "Unable to update the wishlist"
+        );
+      } finally {
+        setWishlistLoading(false);
+      }
+    }, [
+      product,
+      unavailable,
+      wishlistLoading,
+      wishlisted,
+      isAuthenticated,
+      navigate,
+      productId,
+    ]);
+
+  const handleBuyNow = async () => {
+    if (unavailable || adding) {
+      return;
     }
-  }, [wishlisted, product]);
 
-  const handleLogout = useCallback(() => {
+    if (
+      !requireAuthentication(
+        `/products/${productId}`
+      )
+    ) {
+      return;
+    }
+
+    if (!added) {
+      const addSucceeded =
+        await handleAddToCart();
+
+      if (!addSucceeded) {
+        return;
+      }
+    }
+
+    navigate("/checkout");
+  };
+
+  const submitReview = async (
+    event
+  ) => {
+    event.preventDefault();
+
+    if (
+      !requireAuthentication(
+        `/products/${productId}`
+      )
+    ) {
+      return;
+    }
+
+    const normalizedComment =
+      review.comment.trim();
+
+    if (
+      !Number.isInteger(review.rating) ||
+      review.rating < 1 ||
+      review.rating > 5
+    ) {
+      showWarning(
+        "Rating must be between 1 and 5"
+      );
+
+      return;
+    }
+
+    if (!normalizedComment) {
+      showWarning(
+        "Please write a review comment"
+      );
+
+      return;
+    }
+
+    if (normalizedComment.length > 1000) {
+      showWarning(
+        "Review comment cannot exceed 1000 characters"
+      );
+
+      return;
+    }
+
+    try {
+      setSubmittingReview(true);
+
+      /*
+       * The product ID comes from the URL.
+       * The backend gets the reviewer from JWT.
+       */
+      await ReviewService.addReview(
+        productId,
+        {
+          rating: Number(
+            review.rating
+          ),
+          comment: normalizedComment,
+        }
+      );
+
+      setReview(INITIAL_REVIEW);
+
+      await loadReviews();
+
+      showSuccess(
+        "Review submitted successfully"
+      );
+    } catch (error) {
+      showError(
+        error,
+        "Unable to submit the review"
+      );
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const handleLogout = () => {
     localStorage.removeItem("token");
-    navigate("/login");
-  }, [navigate]);
+    localStorage.removeItem("user");
+    localStorage.removeItem("role");
+    localStorage.removeItem(
+      "username"
+    );
 
-  const handleGoToCart = useCallback(() => navigate("/cart"), [navigate]);
+    navigate("/login", {
+      replace: true,
+    });
+  };
 
-
-  /* ── Loading state ── */
   if (loading) {
     return (
       <div style={S.page}>
         <style>{keyframes}</style>
-        <div style={S.loadingBox}>
-          <span style={S.loadingSpinner}>🌸</span>
-          <p style={S.loadingText}>Loading product...</p>
+
+        <div
+          style={S.loadingBox}
+          role="status"
+        >
+          <span
+            style={S.loadingSpinner}
+            aria-hidden="true"
+          >
+            🌸
+          </span>
+
+          <p style={S.loadingText}>
+            Loading product...
+          </p>
+
           <div style={S.loadingDots}>
-            <span style={{ ...S.dot, animationDelay: "0s" }} />
-            <span style={{ ...S.dot, animationDelay: "0.2s" }} />
-            <span style={{ ...S.dot, animationDelay: "0.4s" }} />
+            <span
+              style={{
+                ...S.dot,
+                animationDelay: "0s",
+              }}
+            />
+
+            <span
+              style={{
+                ...S.dot,
+                animationDelay: "0.2s",
+              }}
+            />
+
+            <span
+              style={{
+                ...S.dot,
+                animationDelay: "0.4s",
+              }}
+            />
           </div>
         </div>
       </div>
     );
   }
 
-  if (!product) return null;
-
-  const outOfStock = product.stockQuantity <= 0;
-
-  
+  if (!product) {
+    return null;
+  }
 
   return (
     <div style={S.page}>
       <style>{keyframes}</style>
 
-      {/* ── NAVBAR ── */}
+      {/* Navigation */}
       <nav style={S.navbar}>
-        <Link to="/" style={{ textDecoration: "none" }}>
+        <Link
+          to="/"
+          style={{
+            textDecoration: "none",
+          }}
+        >
           <div style={S.navBrand}>
-            <span style={S.navLogo}>🌸</span>
-            <span style={S.navTitle}>Cutie Collection</span>
+            <span
+              style={S.navLogo}
+              aria-hidden="true"
+            >
+              🌸
+            </span>
+
+            <span style={S.navTitle}>
+              Cutie Collection
+            </span>
           </div>
         </Link>
 
         <div style={S.navLinks}>
-          <Link to="/" style={S.navLink}>
+          <Link
+            to="/"
+            style={S.navLink}
+          >
             Home
           </Link>
-          <Link to="/categories" style={S.navLink}>
+
+          <Link
+            to="/categories"
+            style={S.navLink}
+          >
             Categories
           </Link>
-          <Link to="/products" style={{ ...S.navLink, ...S.navLinkActive }}>
+
+          <Link
+            to="/products"
+            style={{
+              ...S.navLink,
+              ...S.navLinkActive,
+            }}
+          >
             Products
           </Link>
-          <Link to="/wishlist" style={S.navLink}>
-            💖 Wishlist
-          </Link>
-          <Link to="/cart" style={S.navLink}>
-            🛒 Cart
-          </Link>
-          <Link to="/orders" style={S.navLink}>
-            📦 Orders
-          </Link>
+
+          {isAuthenticated && (
+            <>
+              <Link
+                to="/wishlist"
+                style={S.navLink}
+              >
+                💖 Wishlist
+              </Link>
+
+              <Link
+                to="/cart"
+                style={S.navLink}
+              >
+                🛒 Cart
+              </Link>
+
+              <Link
+                to="/orders"
+                style={S.navLink}
+              >
+                📦 Orders
+              </Link>
+            </>
+          )}
         </div>
 
-        <button
-          onClick={handleLogout}
-          style={S.logoutBtn}
-          className="pdp-logout"
-        >
-          🌸 Logout
-        </button>
+        {isAuthenticated ? (
+          <button
+            type="button"
+            onClick={handleLogout}
+            style={S.logoutBtn}
+            className="pdp-logout"
+          >
+            🌸 Logout
+          </button>
+        ) : (
+          <Link
+            to="/login"
+            style={S.loginLink}
+          >
+            Login
+          </Link>
+        )}
       </nav>
 
-      {/* ── BREADCRUMB ── */}
+      {/* Breadcrumb */}
       <div style={S.breadcrumb}>
-        <Link to="/" style={S.breadcrumbLink} className="pdp-breadcrumb-a">
+        <Link
+          to="/"
+          style={S.breadcrumbLink}
+          className="pdp-breadcrumb-a"
+        >
           Home
         </Link>
-        <span style={S.breadcrumbSep}>›</span>
+
+        <span style={S.breadcrumbSep}>
+          ›
+        </span>
+
         <Link
           to="/products"
           style={S.breadcrumbLink}
@@ -257,15 +666,20 @@ export default function ProductDetailPage() {
         >
           Products
         </Link>
-        <span style={S.breadcrumbSep}>›</span>
-        <span style={S.breadcrumbCurrent}>{product.name}</span>
+
+        <span style={S.breadcrumbSep}>
+          ›
+        </span>
+
+        <span style={S.breadcrumbCurrent}>
+          {product.name}
+        </span>
       </div>
 
-      {/* ── MAIN ── */}
-      <div style={S.container}>
+      {/* Product details */}
+      <main style={S.container}>
         <div style={S.layout}>
-          {/* LEFT — Image */}
-          <div style={S.imageSection}>
+          <section style={S.imageSection}>
             <div
               style={{
                 ...S.imageBox,
@@ -273,740 +687,455 @@ export default function ProductDetailPage() {
                   ? "0 20px 60px rgba(244,143,177,0.38)"
                   : "0 12px 40px rgba(244,143,177,0.2)",
               }}
-              onMouseEnter={() => setImgHovered(true)}
-              onMouseLeave={() => setImgHovered(false)}
+              onMouseEnter={() =>
+                setImgHovered(true)
+              }
+              onMouseLeave={() =>
+                setImgHovered(false)
+              }
             >
-              {product.imageUrl ? (
+              {product.imageUrl &&
+              !imageError ? (
                 <img
                   src={product.imageUrl}
                   alt={product.name}
                   style={{
-                    ...S.image,
-                    transform: imgHovered ? "scale(1.05)" : "scale(1)",
+                    ...S.productImage,
+                    transform: imgHovered
+                      ? "scale(1.05)"
+                      : "scale(1)",
                   }}
                   loading="lazy"
-                  onError={(e) => {
-                    e.target.style.display = "none";
-                    e.target.nextSibling.style.display = "flex";
-                  }}
+                  onError={() =>
+                    setImageError(true)
+                  }
                 />
-              ) : null}
-              <div
-                style={{
-                  ...S.imageFallback,
-                  display: product.imageUrl ? "none" : "flex",
-                }}
-              >
-                <span style={{ fontSize: "100px" }}>🛍️</span>
-              </div>
+              ) : (
+                <div
+                  style={{
+                    ...S.imageFallback,
+                    display: "flex",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "100px",
+                    }}
+                    aria-hidden="true"
+                  >
+                    🛍️
+                  </span>
+                </div>
+              )}
             </div>
 
             {product.categoryName && (
-              <div style={S.categoryBadge}>{product.categoryName}</div>
+              <div style={S.categoryBadge}>
+                {product.categoryName}
+              </div>
             )}
 
-            <div style={outOfStock ? S.stockTagOut : S.stockTagIn}>
-              {outOfStock
-                ? "❌ Out of Stock"
-                : `✅ ${product.stockQuantity} left`}
+            <div
+              style={
+                unavailable
+                  ? S.stockTagOut
+                  : S.stockTagIn
+              }
+            >
+              {product.active === false
+                ? "❌ Product Unavailable"
+                : unavailable
+                  ? "❌ Out of Stock"
+                  : `✅ ${product.stockQuantity} available`}
             </div>
-          </div>
+          </section>
 
-          {/* RIGHT — Details */}
-          <div style={S.detailsSection}>
-            <h1 style={S.productName}>{product.name}</h1>
+          <section style={S.detailsSection}>
+            <h1 style={S.productName}>
+              {product.name}
+            </h1>
 
             <div style={S.priceRow}>
-              <span style={S.price}>₹{product.price}</span>
-              <div style={S.freeDeliveryTag}>🚚 FREE Delivery</div>
+              <span style={S.price}>
+                ₹{formattedPrice}
+              </span>
+
+              <div
+                style={S.freeDeliveryTag}
+              >
+                🔒 Secure Checkout
+              </div>
             </div>
-            <p style={S.priceSub}>Free delivery on orders above ₹499 💕</p>
+
+            <p style={S.priceSub}>
+              Final price and stock are
+              revalidated by the backend
+              during order placement.
+            </p>
 
             <div style={S.divider} />
 
             {product.description && (
               <div style={S.descBox}>
-                <h3 style={S.descTitle}>📝 Description</h3>
-                <p style={S.desc}>{product.description}</p>
+                <h3 style={S.descTitle}>
+                  📝 Description
+                </h3>
+
+                <p style={S.desc}>
+                  {product.description}
+                </p>
               </div>
             )}
 
-            {/* Highlights — static array defined outside component */}
             <div style={S.highlights}>
-              {HIGHLIGHTS.map((h) => (
-                <div
-                  key={h.title}
-                  style={S.highlight}
-                  className="pdp-highlight-row"
-                >
-                  <span style={S.highlightIcon}>{h.icon}</span>
-                  <div>
-                    <div style={S.highlightTitle}>{h.title}</div>
-                    <div style={S.highlightSub}>{h.sub}</div>
+              {HIGHLIGHTS.map(
+                (highlight) => (
+                  <div
+                    key={highlight.title}
+                    style={S.highlight}
+                    className="pdp-highlight-row"
+                  >
+                    <span
+                      style={
+                        S.highlightIcon
+                      }
+                      aria-hidden="true"
+                    >
+                      {highlight.icon}
+                    </span>
+
+                    <div>
+                      <div
+                        style={
+                          S.highlightTitle
+                        }
+                      >
+                        {highlight.title}
+                      </div>
+
+                      <div
+                        style={
+                          S.highlightSub
+                        }
+                      >
+                        {highlight.sub}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              )}
             </div>
 
             <div style={S.divider} />
 
-            {/* ── Action Buttons ── */}
             <div style={S.actions}>
               {!added ? (
                 <button
+                  type="button"
                   className="pdp-cart-btn"
-                  style={
-                    outOfStock
-                      ? {
-                          ...S.addToCartBtn,
-                          opacity: 0.5,
-                          cursor: "not-allowed",
-                        }
-                      : adding
-                        ? { ...S.addToCartBtn, opacity: 0.8 }
-                        : S.addToCartBtn
-                  }
+                  style={{
+                    ...S.addToCartBtn,
+                    opacity:
+                      unavailable || adding
+                        ? 0.5
+                        : 1,
+                    cursor:
+                      unavailable || adding
+                        ? "not-allowed"
+                        : "pointer",
+                  }}
                   onClick={handleAddToCart}
-                  disabled={outOfStock || adding}
+                  disabled={
+                    unavailable || adding
+                  }
                 >
-                  {adding ? "Adding... 🌸" : "🛒 Add to Cart"}
+                  {adding
+                    ? "Adding... 🌸"
+                    : unavailable
+                      ? "Unavailable"
+                      : "🛒 Add to Cart"}
                 </button>
               ) : (
-                <button style={S.goToCartBtn} onClick={handleGoToCart}>
+                <button
+                  type="button"
+                  style={S.goToCartBtn}
+                  onClick={() =>
+                    navigate("/cart")
+                  }
+                >
                   ✅ Go to Cart →
                 </button>
               )}
 
               <button
+                type="button"
                 className="pdp-wishlist-btn"
-                style={wishlisted ? S.wishlistBtnActive : S.wishlistBtn}
+                style={
+                  wishlisted
+                    ? S.wishlistBtnActive
+                    : S.wishlistBtn
+                }
                 onClick={handleWishlist}
+                disabled={
+                  wishlistLoading ||
+                  unavailable
+                }
+                aria-label={
+                  wishlisted
+                    ? "Remove product from wishlist"
+                    : "Add product to wishlist"
+                }
               >
-                {wishlisted ? "❤️" : "🤍"}
+                {wishlistLoading
+                  ? "⏳"
+                  : wishlisted
+                    ? "❤️"
+                    : "🤍"}
               </button>
             </div>
 
-            {!outOfStock && (
-              <Link to="/checkout" style={{ textDecoration: "none" }}>
-                <button className="pdp-buynow-btn" style={S.buyNowBtn}>
-                  ⚡ Buy Now
-                </button>
-              </Link>
+            {!unavailable && (
+              <button
+                type="button"
+                className="pdp-buynow-btn"
+                style={S.buyNowBtn}
+                onClick={handleBuyNow}
+                disabled={adding}
+              >
+                ⚡ Buy Now
+              </button>
             )}
 
-            {/* Trust badges — static array outside component */}
             <div style={S.trustRow}>
-              {TRUST_BADGES.map((t) => (
-                <span key={t} style={S.trustBadge}>
-                  {t}
-                </span>
-              ))}
+              {TRUST_BADGES.map(
+                (trustBadge) => (
+                  <span
+                    key={trustBadge}
+                    style={S.trustBadge}
+                  >
+                    {trustBadge}
+                  </span>
+                )
+              )}
             </div>
 
-            <Link to="/products" style={S.backLink} className="pdp-back">
+            <Link
+              to="/products"
+              style={S.backLink}
+              className="pdp-back"
+            >
               ← Back to Products
             </Link>
-          </div>
+          </section>
         </div>
-      </div>
-      {/* ── REVIEWS & RATINGS ── */}
-      <div
-        style={{
-          maxWidth: "1200px",
-          margin: "40px auto",
-          padding: "0 60px",
-        }}
-      >
-        <div
-          style={{
-            background: "#fff",
-            border: "2px solid #fce4ec",
-            borderRadius: "24px",
-            padding: "30px",
-          }}
-        >
-          <h2
-            style={{
-              color: "#e91e8c",
-              marginBottom: "20px",
-            }}
-          >
+      </main>
+
+      {/* Reviews */}
+      <section style={S.reviewsContainer}>
+        <div style={S.reviewsCard}>
+          <h2 style={S.reviewsTitle}>
             ⭐ Reviews & Ratings
           </h2>
 
-          {/* Write Review */}
-          <div
-            style={{
-              background: "#fff5f8",
-              padding: "20px",
-              borderRadius: "18px",
-              marginBottom: "30px",
-            }}
-          >
-            <h3>Write a Review 💕</h3>
-
-            <input
-              type="text"
-              placeholder="Your Name 🌸"
-              value={review.userName}
-              onChange={(e) =>
-                setReview({
-                  ...review,
-                  userName: e.target.value,
-                })
-              }
-              style={{
-                width: "100%",
-                padding: "12px",
-                borderRadius: "12px",
-                border: "1px solid #f8bbd0",
-                marginBottom: "12px",
-              }}
-            />
-
-            <select
-              value={review.rating}
-              onChange={(e) =>
-                setReview({
-                  ...review,
-                  rating: Number(e.target.value),
-                })
-              }
-              style={{
-                width: "100%",
-                padding: "12px",
-                borderRadius: "12px",
-                border: "1px solid #f8bbd0",
-                marginBottom: "12px",
-              }}
+          {isAuthenticated ? (
+            <form
+              onSubmit={submitReview}
+              style={S.reviewForm}
             >
-              <option value={5}>⭐⭐⭐⭐⭐</option>
-              <option value={4}>⭐⭐⭐⭐</option>
-              <option value={3}>⭐⭐⭐</option>
-              <option value={2}>⭐⭐</option>
-              <option value={1}>⭐</option>
-            </select>
+              <h3 style={S.reviewFormTitle}>
+                Write a Review 💕
+              </h3>
 
-            <textarea
-              rows="4"
-              placeholder="Write your review 💖"
-              value={review.comment}
-              onChange={(e) =>
-                setReview({
-                  ...review,
-                  comment: e.target.value,
-                })
-              }
-              style={{
-                width: "100%",
-                padding: "12px",
-                borderRadius: "12px",
-                border: "1px solid #f8bbd0",
-                marginBottom: "12px",
-                resize: "none",
-              }}
-            />
+              <label
+                htmlFor="review-rating"
+                style={S.reviewLabel}
+              >
+                Rating
+              </label>
 
-            <button
-              onClick={submitReview}
-              style={{
-                background:
-                  "linear-gradient(135deg,#f06292,#e91e8c)",
-                color: "#fff",
-                border: "none",
-                borderRadius: "12px",
-                padding: "12px 24px",
-                cursor: "pointer",
-                fontWeight: "600",
-              }}
-            >
-              Submit Review 🌸
-            </button>
-          </div>
+              <select
+                id="review-rating"
+                value={review.rating}
+                onChange={(event) =>
+                  setReview(
+                    (currentReview) => ({
+                      ...currentReview,
+                      rating: Number(
+                        event.target.value
+                      ),
+                    })
+                  )
+                }
+                disabled={submittingReview}
+                style={S.reviewInput}
+              >
+                <option value={5}>
+                  ⭐⭐⭐⭐⭐
+                </option>
 
-          {/* Reviews List */}
-          <h3
-            style={{
-              color: "#c2185b",
-              marginBottom: "20px",
-            }}
-          >
+                <option value={4}>
+                  ⭐⭐⭐⭐
+                </option>
+
+                <option value={3}>
+                  ⭐⭐⭐
+                </option>
+
+                <option value={2}>
+                  ⭐⭐
+                </option>
+
+                <option value={1}>
+                  ⭐
+                </option>
+              </select>
+
+              <label
+                htmlFor="review-comment"
+                style={S.reviewLabel}
+              >
+                Comment
+              </label>
+
+              <textarea
+                id="review-comment"
+                rows={4}
+                placeholder="Write your review"
+                value={review.comment}
+                onChange={(event) =>
+                  setReview(
+                    (currentReview) => ({
+                      ...currentReview,
+                      comment:
+                        event.target.value,
+                    })
+                  )
+                }
+                maxLength={1000}
+                disabled={submittingReview}
+                style={S.reviewTextarea}
+              />
+
+              <span
+                style={
+                  S.reviewCharacterCount
+                }
+              >
+                {review.comment.length}/1000
+              </span>
+
+              <button
+                type="submit"
+                disabled={submittingReview}
+                style={{
+                  ...S.reviewSubmitButton,
+                  opacity: submittingReview
+                    ? 0.65
+                    : 1,
+                  cursor: submittingReview
+                    ? "not-allowed"
+                    : "pointer",
+                }}
+              >
+                {submittingReview
+                  ? "Submitting..."
+                  : "Submit Review 🌸"}
+              </button>
+            </form>
+          ) : (
+            <div style={S.reviewLoginBox}>
+              <p style={S.reviewLoginText}>
+                Sign in to review this
+                product.
+              </p>
+
+              <Link
+                to="/login"
+                state={{
+                  from: `/products/${productId}`,
+                }}
+                style={S.reviewLoginLink}
+              >
+                Login to Write a Review
+              </Link>
+            </div>
+          )}
+
+          <h3 style={S.reviewListTitle}>
             Customer Reviews 💖
           </h3>
 
-          {reviews.length === 0 ? (
-            <p>No reviews yet. Be the first one! 🌸</p>
+          {reviewsLoading ? (
+            <p style={S.reviewStatusText}>
+              Loading reviews...
+            </p>
+          ) : reviews.length === 0 ? (
+            <p style={S.reviewStatusText}>
+              No reviews yet. Be the first
+              customer to review this
+              product.
+            </p>
           ) : (
-            reviews.map((r) => (
-              <div
-                key={r.id}
-                style={{
-                  border: "1px solid #f8bbd0",
-                  borderRadius: "18px",
-                  padding: "16px",
-                  marginBottom: "16px",
-                  background: "#fffafc",
-                }}
+            reviews.map((savedReview) => (
+              <article
+                key={savedReview.id}
+                style={S.reviewItem}
               >
-                <h4
-                  style={{
-                    margin: 0,
-                    color: "#e91e8c",
-                  }}
+                <div
+                  style={
+                    S.reviewItemHeader
+                  }
                 >
-                  {r.userName}
-                </h4>
+                  <h4
+                    style={
+                      S.reviewerName
+                    }
+                  >
+                    {savedReview.userName ||
+                      savedReview.reviewerName ||
+                      "Verified Customer"}
+                  </h4>
 
-                <p
-                  style={{
-                    margin: "8px 0",
-                  }}
-                >
-                  {"⭐".repeat(r.rating)}
+                  {savedReview.createdAt && (
+                    <span
+                      style={
+                        S.reviewDate
+                      }
+                    >
+                      {new Date(
+                        savedReview.createdAt
+                      ).toLocaleDateString(
+                        "en-IN"
+                      )}
+                    </span>
+                  )}
+                </div>
+
+                <p style={S.reviewStars}>
+                  {"⭐".repeat(
+                    Number(
+                      savedReview.rating ||
+                        0
+                    )
+                  )}
                 </p>
 
-                <p
-                  style={{
-                    margin: 0,
-                    color: "#555",
-                  }}
-                >
-                  {r.comment}
+                <p style={S.reviewComment}>
+                  {savedReview.comment}
                 </p>
-              </div>
+              </article>
             ))
           )}
         </div>
-      </div>
+      </section>
 
-      {/* ── FOOTER ── */}
       <footer style={S.footer}>
         <p style={{ margin: 0 }}>
-          © 2024 Cutie Collection. Made with 💕 for all cuties.
+          © {new Date().getFullYear()} Cutie
+          Collection. Made with 💕 for all
+          cuties.
         </p>
       </footer>
     </div>
   );
 }
-
-/* ── Static data outside component — no re-creation on render ── */
-const HIGHLIGHTS = [
-  { icon: "🚚", title: "Free Delivery", sub: "3–5 business days" },
-  { icon: "↩️", title: "Easy Returns", sub: "7-day return policy" },
-  { icon: "🔒", title: "Secure Payment", sub: "100% safe checkout" },
-  { icon: "🌸", title: "Cutie Quality", sub: "Handpicked with love" },
-];
-
-const TRUST_BADGES = ["✅ Genuine Product", "🔄 Easy Returns", "💳 Secure Pay"];
-
-/* ── Keyframes (injected once via <style>) ── */
-const keyframes = `
-  @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes dotBounce {
-    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-    40%            { transform: scale(1);   opacity: 1; }
-  }
-  @keyframes spinFloat {
-    0%   { transform: rotate(0deg)   scale(1); }
-    50%  { transform: rotate(180deg) scale(1.15); }
-    100% { transform: rotate(360deg) scale(1); }
-  }
-  .pdp-cart-btn:hover:not(:disabled) {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 10px 28px rgba(233,30,140,0.45) !important;
-  }
-  .pdp-cart-btn:active:not(:disabled) { transform: scale(0.97) !important; }
-  .pdp-wishlist-btn:hover {
-    background: #fce4ec !important;
-    border-color: #e91e8c !important;
-    transform: scale(1.08) !important;
-  }
-  .pdp-buynow-btn:hover {
-    background: #1a1a1a !important;
-    transform: translateY(-2px) !important;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.22) !important;
-  }
-  .pdp-buynow-btn:active { transform: scale(0.97) !important; }
-  .pdp-highlight-row:hover {
-    background: #fce4ec !important;
-    border-color: #f8bbd0 !important;
-  }
-  .pdp-logout:hover {
-    transform: translateY(-1px) !important;
-    box-shadow: 0 6px 18px rgba(233,30,140,0.38) !important;
-  }
-  .pdp-back:hover { color: #e91e8c !important; }
-  .pdp-breadcrumb-a:hover { color: #e91e8c !important; }
-`;
-
-/* ── Styles (object outside component — created once) ── */
-const S = {
-  page: {
-    fontFamily: "'Poppins', sans-serif",
-    background: "#fff",
-    minHeight: "100vh",
-    color: "#333",
-  },
-
-  /* LOADING */
-  loadingBox: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: "80vh",
-    gap: "16px",
-  },
-  loadingSpinner: {
-    fontSize: "64px",
-    display: "block",
-    animation: "spinFloat 1.8s linear infinite",
-  },
-  loadingText: { fontSize: "16px", color: "#f48fb1", fontWeight: "500" },
-  loadingDots: { display: "flex", gap: "8px" },
-  dot: {
-    width: "10px",
-    height: "10px",
-    borderRadius: "50%",
-    background: "linear-gradient(135deg, #f06292, #e91e8c)",
-    animation: "dotBounce 1.2s ease-in-out infinite",
-    display: "inline-block",
-  },
-
-  /* NAVBAR */
-  navbar: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "16px 60px",
-    background: "rgba(255,255,255,0.96)",
-    backdropFilter: "blur(12px)",
-    borderBottom: "1.5px solid #fce4ec",
-    position: "sticky",
-    top: 0,
-    zIndex: 100,
-    flexWrap: "wrap",
-    gap: "12px",
-    boxShadow: "0 2px 16px rgba(244,143,177,0.1)",
-  },
-  navBrand: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    cursor: "pointer",
-  },
-  navLogo: { fontSize: "28px" },
-  navTitle: {
-    fontSize: "20px",
-    fontWeight: "700",
-    color: "#e91e8c",
-    letterSpacing: "0.3px",
-  },
-  navLinks: {
-    display: "flex",
-    gap: "24px",
-    flexWrap: "wrap",
-    alignItems: "center",
-  },
-  navLink: {
-    textDecoration: "none",
-    color: "#c2185b",
-    fontSize: "14px",
-    fontWeight: "500",
-    paddingBottom: "4px",
-    borderBottom: "2px solid transparent",
-    transition: "color 0.2s",
-  },
-  navLinkActive: {
-    color: "#e91e8c",
-    fontWeight: "700",
-    borderBottom: "2px solid #e91e8c",
-  },
-  logoutBtn: {
-    background: "linear-gradient(135deg, #f06292, #e91e8c)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "20px",
-    padding: "8px 20px",
-    fontSize: "13px",
-    fontWeight: "600",
-    cursor: "pointer",
-    fontFamily: "'Poppins', sans-serif",
-    boxShadow: "0 4px 14px rgba(233,30,140,0.28)",
-    transition: "transform 0.2s, box-shadow 0.2s",
-  },
-
-  /* BREADCRUMB */
-  breadcrumb: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    padding: "14px 60px",
-    background: "linear-gradient(to right, #fff5f8, #fff)",
-    borderBottom: "1px solid #fce4ec",
-    fontSize: "13px",
-  },
-  breadcrumbLink: {
-    textDecoration: "none",
-    color: "#f48fb1",
-    fontWeight: "500",
-    transition: "color 0.2s",
-  },
-  breadcrumbSep: { color: "#f8bbd0" },
-  breadcrumbCurrent: { color: "#e91e8c", fontWeight: "600" },
-
-  /* LAYOUT */
-  container: { padding: "48px 60px", maxWidth: "1200px", margin: "0 auto" },
-  layout: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "64px",
-    alignItems: "flex-start",
-  },
-
-  /* IMAGE */
-  imageSection: { position: "relative" },
-  imageBox: {
-    background: "linear-gradient(135deg, #fff0f5 0%, #fce4ec 100%)",
-    borderRadius: "28px",
-    height: "440px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-    border: "2px solid #f8bbd0",
-    transition: "box-shadow 0.3s ease",
-  },
-  image: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    borderRadius: "28px",
-    transition: "transform 0.4s ease",
-  },
-  imageFallback: {
-    width: "100%",
-    height: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  categoryBadge: {
-    position: "absolute",
-    top: "16px",
-    left: "16px",
-    background: "linear-gradient(135deg, #f06292, #e91e8c)",
-    color: "#fff",
-    borderRadius: "20px",
-    padding: "6px 16px",
-    fontSize: "12px",
-    fontWeight: "700",
-    letterSpacing: "0.4px",
-    boxShadow: "0 4px 14px rgba(233,30,140,0.32)",
-    animation: "fadeInUp 0.4s ease",
-  },
-  stockTagIn: {
-    position: "absolute",
-    bottom: "16px",
-    right: "16px",
-    background: "#f0fff4",
-    color: "#2e7d32",
-    border: "1.5px solid #c8e6c9",
-    borderRadius: "20px",
-    padding: "5px 14px",
-    fontSize: "11px",
-    fontWeight: "700",
-  },
-  stockTagOut: {
-    position: "absolute",
-    bottom: "16px",
-    right: "16px",
-    background: "#fff5f5",
-    color: "#c62828",
-    border: "1.5px solid #ffcdd2",
-    borderRadius: "20px",
-    padding: "5px 14px",
-    fontSize: "11px",
-    fontWeight: "700",
-  },
-
-  /* DETAILS */
-  detailsSection: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "20px",
-    animation: "fadeInUp 0.5s ease",
-  },
-  productName: {
-    fontSize: "32px",
-    fontWeight: "800",
-    color: "#2d2d2d",
-    lineHeight: "1.25",
-    margin: 0,
-  },
-
-  priceRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "16px",
-    flexWrap: "wrap",
-  },
-  price: {
-    fontSize: "40px",
-    fontWeight: "800",
-    color: "#e91e8c",
-    lineHeight: 1,
-  },
-  freeDeliveryTag: {
-    background: "#e8f5e9",
-    color: "#2e7d32",
-    border: "1px solid #c8e6c9",
-    borderRadius: "20px",
-    padding: "5px 14px",
-    fontSize: "12px",
-    fontWeight: "600",
-  },
-  priceSub: { fontSize: "12px", color: "#aaa", margin: 0 },
-
-  divider: {
-    height: "1.5px",
-    background: "linear-gradient(to right, #fce4ec, #fff5f8, #fce4ec)",
-    borderRadius: "2px",
-  },
-
-  descBox: {
-    background: "linear-gradient(135deg, #fff0f5, #fce4ec)",
-    borderRadius: "18px",
-    padding: "22px",
-    border: "1.5px solid #f8bbd0",
-  },
-  descTitle: {
-    fontSize: "13px",
-    fontWeight: "700",
-    color: "#c2185b",
-    margin: "0 0 10px 0",
-    textTransform: "uppercase",
-    letterSpacing: "0.5px",
-  },
-  desc: { fontSize: "14px", color: "#666", lineHeight: "1.75", margin: 0 },
-
-  highlights: { display: "flex", flexDirection: "column", gap: "10px" },
-  highlight: {
-    display: "flex",
-    alignItems: "center",
-    gap: "14px",
-    background: "#fff5f8",
-    borderRadius: "14px",
-    padding: "13px 18px",
-    border: "1.5px solid #fce4ec",
-    transition: "background 0.2s, border-color 0.2s",
-    cursor: "default",
-  },
-  highlightIcon: { fontSize: "20px", flexShrink: 0 },
-  highlightTitle: { fontSize: "13px", fontWeight: "700", color: "#333" },
-  highlightSub: { fontSize: "11px", color: "#aaa", marginTop: "2px" },
-
-  /* BUTTONS */
-  actions: { display: "flex", gap: "12px" },
-
-  addToCartBtn: {
-    flex: 1,
-    background: "linear-gradient(135deg, #f06292, #e91e8c)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "16px",
-    padding: "16px 24px",
-    fontSize: "15px",
-    fontWeight: "700",
-    cursor: "pointer",
-    fontFamily: "'Poppins', sans-serif",
-    boxShadow: "0 6px 22px rgba(233,30,140,0.32)",
-    transition: "transform 0.2s, box-shadow 0.2s, background 0.3s",
-    letterSpacing: "0.3px",
-  },
-  goToCartBtn: {
-    flex: 1,
-    background: "linear-gradient(135deg, #43a047, #2e7d32)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "16px",
-    padding: "16px 24px",
-    fontSize: "15px",
-    fontWeight: "700",
-    cursor: "pointer",
-    fontFamily: "'Poppins', sans-serif",
-    boxShadow: "0 6px 20px rgba(46,125,50,0.35)",
-    transition: "all 0.3s ease",
-    animation: "fadeInUp 0.3s ease",
-    letterSpacing: "0.3px",
-  },
-  wishlistBtn: {
-    background: "#fff5f8",
-    color: "#e91e8c",
-    border: "1.5px solid #f8bbd0",
-    borderRadius: "16px",
-    padding: "16px 20px",
-    fontSize: "20px",
-    cursor: "pointer",
-    fontFamily: "'Poppins', sans-serif",
-    transition: "all 0.2s ease",
-    flexShrink: 0,
-  },
-  wishlistBtnActive: {
-    background: "linear-gradient(135deg, #fff0f5, #fce4ec)",
-    color: "#e91e8c",
-    border: "1.5px solid #e91e8c",
-    borderRadius: "16px",
-    padding: "16px 20px",
-    fontSize: "20px",
-    cursor: "pointer",
-    fontFamily: "'Poppins', sans-serif",
-    boxShadow: "0 4px 14px rgba(233,30,140,0.18)",
-    flexShrink: 0,
-  },
-  buyNowBtn: {
-    width: "100%",
-    background: "#2d2d2d",
-    color: "#fff",
-    border: "none",
-    borderRadius: "16px",
-    padding: "16px",
-    fontSize: "15px",
-    fontWeight: "700",
-    cursor: "pointer",
-    fontFamily: "'Poppins', sans-serif",
-    boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
-    transition: "transform 0.2s, box-shadow 0.2s, background 0.2s",
-    letterSpacing: "0.3px",
-  },
-
-  trustRow: { display: "flex", flexWrap: "wrap", gap: "8px" },
-  trustBadge: {
-    background: "#fff5f8",
-    color: "#c2185b",
-    border: "1px solid #f8bbd0",
-    borderRadius: "20px",
-    padding: "5px 14px",
-    fontSize: "11px",
-    fontWeight: "600",
-  },
-  backLink: {
-    textDecoration: "none",
-    color: "#f48fb1",
-    fontSize: "13px",
-    fontWeight: "600",
-    display: "inline-block",
-    transition: "color 0.2s",
-  },
-
-  footer: {
-    background: "#2d2d2d",
-    textAlign: "center",
-    padding: "28px",
-    fontSize: "13px",
-    color: "#666",
-    marginTop: "80px",
-  },
-};
