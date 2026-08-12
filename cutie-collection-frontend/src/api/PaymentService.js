@@ -1,26 +1,29 @@
-import axios from "axios";
+import api from "./axiosConfig";
 
-const API_URL = "http://localhost:8080/api/payments";
+const BASE_URL = "/api/payments";
+const ADMIN_BASE_URL = "/api/admin/payments";
 
 const PaymentService = {
+  createPaymentOrder: (applicationOrderId) =>
+    api.post(`${BASE_URL}/create-order`, {
+      orderId: applicationOrderId,
+    }),
 
-  createOrder(amount) {
-    return axios.post(
-      `${API_URL}/create-order`,
-      { amount }
-    );
-  },
+  verifyPayment: ({
+    applicationOrderId,
+    razorpayOrderId,
+    razorpayPaymentId,
+    razorpaySignature,
+  }) =>
+    api.post(`${BASE_URL}/verify`, {
+      applicationOrderId,
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature,
+    }),
 
-  savePayment(paymentData) {
-    return axios.post(
-      `${API_URL}/success`,
-      paymentData
-    );
-  },
-
-  getAllPayments() {
-    return axios.get(API_URL);
-  }
+  getAllPaymentsForAdmin: () =>
+    api.get(ADMIN_BASE_URL),
 };
 
 export default PaymentService;

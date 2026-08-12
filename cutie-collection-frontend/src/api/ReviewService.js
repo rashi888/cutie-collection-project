@@ -1,19 +1,23 @@
-import axios from "axios";
-
-const API_URL = "http://localhost:8080/api/reviews";
+import api from "./axiosConfig";
 
 const ReviewService = {
+  getReviewsByProduct: (productId) =>
+    api.get(`/api/products/${productId}/reviews`),
 
-  addReview(review) {
-    return axios.post(API_URL, review);
-  },
+  getAverageRating: (productId) =>
+    api.get(`/api/products/${productId}/reviews/average`),
 
-  getReviewsByProduct(productId) {
-    return axios.get(
-      `${API_URL}/product/${productId}`
-    );
-  }
+  addReview: (productId, reviewData) =>
+    api.post(
+      `/api/products/${productId}/reviews`,
+      reviewData
+    ),
 
+  updateReview: (reviewId, reviewData) =>
+    api.put(`/api/reviews/${reviewId}`, reviewData),
+
+  deleteReview: (reviewId) =>
+    api.delete(`/api/reviews/${reviewId}`),
 };
 
 export default ReviewService;
