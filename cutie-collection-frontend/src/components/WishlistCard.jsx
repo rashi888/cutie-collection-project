@@ -1,174 +1,449 @@
-import { useState } from "react";
-
-export default function WishlistCard({ item, onRemove, onAddToCart }) {
-  const [removing, setRemoving]   = useState(false);
-  const [adding,   setAdding]     = useState(false);
-  const [added,    setAdded]      = useState(false);
-
-  const handleRemove = async () => {
-    setRemoving(true);
-    await onRemove(item.productId);
-  };
-
-  const handleAddToCart = async () => {
-    if (adding || added) return;
-    setAdding(true);
-    await onAddToCart(item);
-    setAdding(false);
-    setAdded(true);
-    setTimeout(() => setAdded(false), 1800);
-  };
+export default function ProductForm({
+  form,
+  onChange,
+  onSubmit,
+  onCancel,
+  loading = false,
+  editId = null,
+  categories = [],
+}) {
+  const activeCategories = categories.filter(
+    (category) => category.active !== false
+  );
 
   return (
-    <div
-      style={{
-        ...styles.card,
-        opacity:    removing ? 0 : 1,
-        transform:  removing ? "translateX(40px)" : "translateX(0)",
-        transition: "opacity 0.3s ease, transform 0.3s ease",
-      }}
-    >
-      {/* Image */}
-      <div style={styles.imageBox}>
-        {item.imageUrl ? (
-          <img src={item.imageUrl} alt={item.productName} style={styles.image} />
-        ) : (
-          <span style={styles.imagePlaceholder}>🛍️</span>
-        )}
-      </div>
+    <div style={styles.formCard}>
+      <h2 style={styles.formTitle}>
+        {editId
+          ? "✏️ Edit Product"
+          : "🛍️ New Product"}
+      </h2>
 
-      {/* Info */}
-      <div style={styles.info}>
-        <h3 style={styles.name}>{item.productName}</h3>
-        {item.categoryName && (
-          <span style={styles.categoryBadge}>{item.categoryName}</span>
-        )}
-        <p style={styles.price}>₹{item.price}</p>
-        <span style={item.stockQuantity > 0 ? styles.inStock : styles.outStock}>
-          {item.stockQuantity > 0 ? `In Stock: ${item.stockQuantity}` : "Out of Stock"}
-        </span>
-      </div>
+      <form
+        onSubmit={onSubmit}
+        style={styles.form}
+      >
+        {/* Product Name */}
+        <div style={styles.inputGroup}>
+          <label
+            htmlFor="product-name"
+            style={styles.label}
+          >
+            Product Name
+          </label>
 
-      {/* Actions */}
-      <div style={styles.actions}>
-        {/* Add to Cart */}
-        <button
-          style={
-            added
-              ? { ...styles.cartBtn, background: "linear-gradient(135deg, #66bb6a, #2e7d32)" }
-              : item.stockQuantity <= 0
-              ? { ...styles.cartBtn, opacity: 0.5, cursor: "not-allowed" }
-              : styles.cartBtn
-          }
-          onClick={handleAddToCart}
-          disabled={adding || added || item.stockQuantity <= 0}
-        >
-          {adding ? "Adding..." : added ? "✅ Added!" : "🛒 Add to Cart"}
-        </button>
+          <div style={styles.inputWrapper}>
+            <span
+              style={styles.icon}
+              aria-hidden="true"
+            >
+              🏷️
+            </span>
 
-        {/* Remove from Wishlist */}
-        <button
-          style={{
-            ...styles.removeBtn,
-            opacity:    removing ? 0.5 : 1,
-            transform:  removing ? "scale(0.9)" : "scale(1)",
-            transition: "opacity 0.2s, transform 0.2s",
-          }}
-          onClick={handleRemove}
-          disabled={removing}
-          title="Remove from wishlist"
-        >
-          🗑️ Remove
-        </button>
-      </div>
+            <input
+              id="product-name"
+              type="text"
+              name="name"
+              value={form.name ?? ""}
+              onChange={onChange}
+              placeholder="e.g. Cute Teddy Bear"
+              minLength={2}
+              maxLength={255}
+              required
+              disabled={loading}
+              style={styles.input}
+            />
+          </div>
+        </div>
+
+        {/* Description */}
+        <div style={styles.inputGroup}>
+          <label
+            htmlFor="product-description"
+            style={styles.label}
+          >
+            Description{" "}
+            <span style={styles.optional}>
+              (optional)
+            </span>
+          </label>
+
+          <div
+            style={{
+              ...styles.inputWrapper,
+              alignItems: "flex-start",
+            }}
+          >
+            <span
+              style={{
+                ...styles.icon,
+                marginTop: "14px",
+              }}
+              aria-hidden="true"
+            >
+              📝
+            </span>
+
+            <textarea
+              id="product-description"
+              name="description"
+              value={form.description ?? ""}
+              onChange={onChange}
+              placeholder="Describe the product..."
+              rows={4}
+              maxLength={5000}
+              disabled={loading}
+              style={styles.textarea}
+            />
+          </div>
+
+          <span style={styles.characterCount}>
+            {(form.description ?? "").length}/5000
+          </span>
+        </div>
+
+        {/* Price and Stock */}
+        <div style={styles.row}>
+          <div style={styles.inputGroup}>
+            <label
+              htmlFor="product-price"
+              style={styles.label}
+            >
+              Price (₹)
+            </label>
+
+            <div style={styles.inputWrapper}>
+              <span
+                style={styles.icon}
+                aria-hidden="true"
+              >
+                💰
+              </span>
+
+              <input
+                id="product-price"
+                type="number"
+                name="price"
+                value={form.price ?? ""}
+                onChange={onChange}
+                placeholder="0.00"
+                min="0.01"
+                max="9999999999.99"
+                step="0.01"
+                required
+                disabled={loading}
+                style={styles.input}
+              />
+            </div>
+          </div>
+
+          <div style={styles.inputGroup}>
+            <label
+              htmlFor="product-stock"
+              style={styles.label}
+            >
+              Stock Quantity
+            </label>
+
+            <div style={styles.inputWrapper}>
+              <span
+                style={styles.icon}
+                aria-hidden="true"
+              >
+                📦
+              </span>
+
+              <input
+                id="product-stock"
+                type="number"
+                name="stockQuantity"
+                value={form.stockQuantity ?? ""}
+                onChange={onChange}
+                placeholder="0"
+                min="0"
+                step="1"
+                required
+                disabled={loading}
+                style={styles.input}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Image URL */}
+        <div style={styles.inputGroup}>
+          <label
+            htmlFor="product-image-url"
+            style={styles.label}
+          >
+            Image URL{" "}
+            <span style={styles.optional}>
+              (optional)
+            </span>
+          </label>
+
+          <div style={styles.inputWrapper}>
+            <span
+              style={styles.icon}
+              aria-hidden="true"
+            >
+              🖼️
+            </span>
+
+            <input
+              id="product-image-url"
+              type="url"
+              name="imageUrl"
+              value={form.imageUrl ?? ""}
+              onChange={onChange}
+              placeholder="https://example.com/product.jpg"
+              maxLength={1000}
+              disabled={loading}
+              style={styles.input}
+            />
+          </div>
+        </div>
+
+        {/* Category */}
+        <div style={styles.inputGroup}>
+          <label
+            htmlFor="product-category"
+            style={styles.label}
+          >
+            Category
+          </label>
+
+          <div style={styles.inputWrapper}>
+            <span
+              style={styles.icon}
+              aria-hidden="true"
+            >
+              🗂️
+            </span>
+
+            <select
+              id="product-category"
+              name="categoryId"
+              value={form.categoryId ?? ""}
+              onChange={onChange}
+              required
+              disabled={loading}
+              style={{
+                ...styles.input,
+                cursor: loading
+                  ? "not-allowed"
+                  : "pointer",
+              }}
+            >
+              <option value="">
+                Select a category...
+              </option>
+
+              {activeCategories.map(
+                (category) => (
+                  <option
+                    key={category.id}
+                    value={category.id}
+                  >
+                    {category.name}
+                  </option>
+                )
+              )}
+            </select>
+          </div>
+
+          {activeCategories.length === 0 && (
+            <span style={styles.warning}>
+              No active categories are available.
+              Create or activate a category first.
+            </span>
+          )}
+        </div>
+
+        {/* Buttons */}
+        <div style={styles.formActions}>
+          <button
+            type="submit"
+            disabled={
+              loading ||
+              activeCategories.length === 0
+            }
+            style={{
+              ...styles.submitBtn,
+              opacity:
+                loading ||
+                activeCategories.length === 0
+                  ? 0.65
+                  : 1,
+              cursor:
+                loading ||
+                activeCategories.length === 0
+                  ? "not-allowed"
+                  : "pointer",
+            }}
+          >
+            {loading
+              ? "Saving..."
+              : editId
+                ? "Update Product 💕"
+                : "Create Product 🌸"}
+          </button>
+
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={loading}
+            style={{
+              ...styles.cancelBtn,
+              opacity: loading ? 0.6 : 1,
+              cursor: loading
+                ? "not-allowed"
+                : "pointer",
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
 
 const styles = {
-  card: {
-    background: "#fff",
-    borderRadius: "20px",
-    padding: "20px 24px",
-    border: "1.5px solid #f8bbd0",
-    boxShadow: "0 4px 20px rgba(244,143,177,0.12)",
+  formCard: {
+    marginBottom: "36px",
+    padding: "36px 40px",
+    border:
+      "1.5px solid rgba(248,187,208,0.5)",
+    borderRadius: "24px",
+    background: "rgba(255,255,255,0.95)",
+    boxShadow:
+      "0 20px 60px rgba(244,143,177,0.2)",
+    backdropFilter: "blur(20px)",
     fontFamily: "'Poppins', sans-serif",
-    display: "flex",
-    alignItems: "center",
-    gap: "20px",
-    flexWrap: "wrap",
   },
-  imageBox: {
-    background: "linear-gradient(135deg, #fff0f5, #fce4ec)",
-    borderRadius: "14px",
-    width: "90px",
-    height: "90px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-    flexShrink: 0,
-    border: "1px solid #fce4ec",
+
+  formTitle: {
+    margin: "0 0 24px",
+    color: "#e91e8c",
+    fontSize: "22px",
+    fontWeight: "700",
   },
-  image: { width: "100%", height: "100%", objectFit: "cover", borderRadius: "14px" },
-  imagePlaceholder: { fontSize: "40px" },
-  info: {
+
+  form: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "18px",
+  },
+
+  row: {
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: "16px",
+  },
+
+  inputGroup: {
+    display: "flex",
     flex: 1,
-    display: "flex",
     flexDirection: "column",
     gap: "6px",
-    minWidth: "140px",
   },
-  name: { fontSize: "15px", fontWeight: "700", color: "#333", margin: 0 },
-  categoryBadge: {
-    background: "linear-gradient(135deg, #fff0f5, #fce4ec)",
-    color: "#e91e8c",
-    border: "1px solid #f8bbd0",
-    borderRadius: "20px",
-    padding: "2px 12px",
-    fontSize: "11px",
-    fontWeight: "600",
-    alignSelf: "flex-start",
-  },
-  price: { fontSize: "18px", fontWeight: "800", color: "#e91e8c", margin: 0 },
-  inStock: {
-    fontSize: "11px", fontWeight: "600", color: "#2e7d32",
-    background: "#f0fff4", border: "1px solid #c8e6c9",
-    borderRadius: "20px", padding: "3px 10px", alignSelf: "flex-start",
-  },
-  outStock: {
-    fontSize: "11px", fontWeight: "600", color: "#c62828",
-    background: "#fff5f5", border: "1px solid #ffcdd2",
-    borderRadius: "20px", padding: "3px 10px", alignSelf: "flex-start",
-  },
-  actions: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
-    minWidth: "140px",
-  },
-  cartBtn: {
-    background: "linear-gradient(135deg, #f06292, #e91e8c)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "12px",
-    padding: "10px 16px",
-    fontSize: "13px",
-    fontWeight: "700",
-    cursor: "pointer",
-    fontFamily: "'Poppins', sans-serif",
-    boxShadow: "0 4px 12px rgba(233,30,140,0.25)",
-    transition: "transform 0.2s, box-shadow 0.2s",
-  },
-  removeBtn: {
-    background: "#fff5f8",
+
+  label: {
+    paddingLeft: "4px",
     color: "#c2185b",
-    border: "1.5px solid #f8bbd0",
-    borderRadius: "12px",
-    padding: "10px 16px",
     fontSize: "13px",
     fontWeight: "600",
-    cursor: "pointer",
+  },
+
+  optional: {
+    color: "#a86b83",
+    fontWeight: "400",
+  },
+
+  inputWrapper: {
+    display: "flex",
+    alignItems: "center",
+    padding: "0 14px",
+    border: "1.5px solid #f8bbd0",
+    borderRadius: "14px",
+    background: "#fff5f8",
+  },
+
+  icon: {
+    flexShrink: 0,
+    marginRight: "10px",
+    fontSize: "16px",
+  },
+
+  input: {
+    minWidth: 0,
+    flex: 1,
+    padding: "13px 0",
+    border: "none",
+    outline: "none",
+    background: "transparent",
+    color: "#444444",
     fontFamily: "'Poppins', sans-serif",
+    fontSize: "14px",
+  },
+
+  textarea: {
+    minHeight: "95px",
+    flex: 1,
+    padding: "13px 0",
+    border: "none",
+    outline: "none",
+    resize: "vertical",
+    background: "transparent",
+    color: "#444444",
+    fontFamily: "'Poppins', sans-serif",
+    fontSize: "14px",
+    lineHeight: "1.6",
+  },
+
+  characterCount: {
+    alignSelf: "flex-end",
+    color: "#777777",
+    fontSize: "11px",
+  },
+
+  warning: {
+    color: "#9a6200",
+    fontSize: "12px",
+    lineHeight: "1.5",
+  },
+
+  formActions: {
+    display: "flex",
+    gap: "12px",
+    marginTop: "4px",
+    flexWrap: "wrap",
+  },
+
+  submitBtn: {
+    padding: "13px 28px",
+    border: "none",
+    borderRadius: "14px",
+    background:
+      "linear-gradient(135deg, #f06292, #e91e8c)",
+    boxShadow:
+      "0 6px 20px rgba(233,30,140,0.3)",
+    color: "#ffffff",
+    fontFamily: "'Poppins', sans-serif",
+    fontSize: "14px",
+    fontWeight: "600",
+  },
+
+  cancelBtn: {
+    padding: "13px 24px",
+    border: "1.5px solid #f8bbd0",
+    borderRadius: "14px",
+    background: "#ffffff",
+    color: "#c2185b",
+    fontFamily: "'Poppins', sans-serif",
+    fontSize: "14px",
+    fontWeight: "600",
   },
 };

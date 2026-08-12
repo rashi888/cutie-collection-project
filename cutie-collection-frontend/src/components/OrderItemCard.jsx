@@ -1,29 +1,98 @@
+import { useEffect, useState } from "react";
+
 export default function OrderItemCard({ item }) {
+  const [imageError, setImageError] =
+    useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [item.imageUrl]);
+
+  const quantity = Number(
+    item.quantity || 0
+  );
+
+  const unitPrice = Number(
+    item.unitPrice ??
+      item.price ??
+      0
+  );
+
+  const calculatedSubtotal =
+    unitPrice * quantity;
+
+  const subtotal = Number(
+    item.subtotal ??
+      calculatedSubtotal
+  );
+
+  const formatCurrency = (amount) =>
+    Number(amount || 0).toLocaleString(
+      "en-IN",
+      {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }
+    );
+
   return (
-    <div style={styles.card}>
-      {/* Image */}
+    <article style={styles.card}>
+      {/* Product image */}
       <div style={styles.imageBox}>
-        {item.imageUrl ? (
-          <img src={item.imageUrl} alt={item.productName} style={styles.image} />
+        {item.imageUrl && !imageError ? (
+          <img
+            src={item.imageUrl}
+            alt={item.productName}
+            style={styles.image}
+            onError={() => setImageError(true)}
+          />
         ) : (
-          <span style={styles.placeholder}>🛍️</span>
+          <span
+            style={styles.placeholder}
+            aria-hidden="true"
+          >
+            🛍️
+          </span>
         )}
       </div>
 
-      {/* Info */}
+      {/* Product information */}
       <div style={styles.info}>
-        <p style={styles.name}>{item.productName}</p>
-        <p style={styles.unit}>₹{item.price} each</p>
+        <p style={styles.name}>
+          {item.productName ||
+            "Product unavailable"}
+        </p>
+
+        {item.categoryName && (
+          <span style={styles.categoryBadge}>
+            {item.categoryName}
+          </span>
+        )}
+
+        <p style={styles.unitPrice}>
+          ₹{formatCurrency(unitPrice)} each
+        </p>
       </div>
 
-      {/* Qty */}
-      <div style={styles.qtyBadge}>
-        × {item.quantity}
+      {/* Quantity */}
+      <div
+        style={styles.quantityBadge}
+        aria-label={`Quantity: ${quantity}`}
+      >
+        × {quantity}
       </div>
 
       {/* Subtotal */}
-      <p style={styles.subtotal}>₹{(item.price * item.quantity).toFixed(2)}</p>
-    </div>
+      <div style={styles.subtotalBox}>
+        <span style={styles.subtotalLabel}>
+          Subtotal
+        </span>
+
+        <p style={styles.subtotalValue}>
+          ₹{formatCurrency(subtotal)}
+        </p>
+      </div>
+    </article>
   );
 }
 
@@ -32,45 +101,100 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: "14px",
-    background: "linear-gradient(135deg, #fff0f5, #fce4ec)",
-    borderRadius: "16px",
     padding: "14px 18px",
     border: "1px solid #f8bbd0",
+    borderRadius: "16px",
+    background:
+      "linear-gradient(135deg, #fff0f5, #fce4ec)",
     fontFamily: "'Poppins', sans-serif",
     flexWrap: "wrap",
   },
+
   imageBox: {
-    background: "#fff",
-    borderRadius: "12px",
+    display: "flex",
     width: "56px",
     height: "56px",
-    display: "flex",
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
-    overflow: "hidden",
     flexShrink: 0,
     border: "1px solid #f8bbd0",
+    borderRadius: "12px",
+    background: "#ffffff",
   },
-  image: { width: "100%", height: "100%", objectFit: "cover", borderRadius: "12px" },
-  placeholder: { fontSize: "28px" },
-  info: { flex: 1, minWidth: "120px" },
-  name: { fontSize: "14px", fontWeight: "700", color: "#333", margin: 0 },
-  unit: { fontSize: "11px", color: "#aaa", margin: 0, marginTop: "3px" },
-  qtyBadge: {
-    background: "#fff",
+
+  image: {
+    width: "100%",
+    height: "100%",
+    borderRadius: "12px",
+    objectFit: "cover",
+  },
+
+  placeholder: {
+    fontSize: "28px",
+  },
+
+  info: {
+    display: "flex",
+    minWidth: "140px",
+    flex: 1,
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: "3px",
+  },
+
+  name: {
+    margin: 0,
+    color: "#333333",
+    fontSize: "14px",
+    fontWeight: "700",
+    overflowWrap: "anywhere",
+  },
+
+  categoryBadge: {
+    display: "inline-block",
+    padding: "2px 8px",
+    border: "1px solid #f8bbd0",
+    borderRadius: "999px",
+    background: "#ffffff",
+    color: "#c2185b",
+    fontSize: "9px",
+    fontWeight: "600",
+  },
+
+  unitPrice: {
+    margin: "2px 0 0",
+    color: "#777777",
+    fontSize: "11px",
+  },
+
+  quantityBadge: {
+    padding: "4px 14px",
     border: "1.5px solid #f8bbd0",
     borderRadius: "20px",
-    padding: "4px 14px",
+    background: "#ffffff",
+    color: "#e91e8c",
     fontSize: "13px",
     fontWeight: "700",
-    color: "#e91e8c",
   },
-  subtotal: {
+
+  subtotalBox: {
+    minWidth: "100px",
+    textAlign: "right",
+  },
+
+  subtotalLabel: {
+    display: "block",
+    marginBottom: "2px",
+    color: "#777777",
+    fontSize: "9px",
+  },
+
+  subtotalValue: {
+    margin: 0,
+    color: "#e91e8c",
     fontSize: "16px",
     fontWeight: "800",
-    color: "#e91e8c",
-    margin: 0,
-    minWidth: "80px",
-    textAlign: "right",
+    whiteSpace: "nowrap",
   },
 };
