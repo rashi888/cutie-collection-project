@@ -52,13 +52,12 @@ export default function Signup() {
     }
   }, [navigate]);
 
- const handleChange = (event) => {
-  const { name, value } = event.target;
-
-  setForm((currentForm) => ({
-    ...currentForm,
-    value,
-  }));
+const handleChange = (event) => {
+const { name, value } = event.target;
+setForm((currentForm) => ({
+...currentForm,
+[name]: value,
+}));
 };
 
   const validateForm = () => {

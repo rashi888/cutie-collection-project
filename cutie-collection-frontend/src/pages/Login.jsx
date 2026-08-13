@@ -47,15 +47,13 @@ export default function Login() {
     }
   }, [navigate]);
 
-  const handleChange = (event) => {
-    const { name, value } =
-      event.target;
-
-    setForm((currentForm) => ({
-      ...currentForm,
-      value,
-    }));
-  };
+const handleChange = (event) => {
+const { name, value } = event.target;
+setForm((currentForm) => ({
+...currentForm,
+[name]: value,
+}));
+};
 
   const validateForm = () => {
     const email = form.email.trim();

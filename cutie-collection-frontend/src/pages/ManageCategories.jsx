@@ -92,12 +92,11 @@ export default function ManageCategories() {
     categories.length - activeCount;
 
 const handleChange = (event) => {
-  const { name, value } = event.target;
-
-  setForm((currentForm) => ({
-    ...currentForm,
-    value,
-  }));
+const { name, value } = event.target;
+setForm((currentForm) => ({
+...currentForm,
+[name]: value,
+}));
 };
 
   const resetForm = () => {
